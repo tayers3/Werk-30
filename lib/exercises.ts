@@ -4,7 +4,10 @@ export type MuscleGroup =
   | "lower-body"
   | "core"
   | "cardio"
-  | "stretching";
+  | "stretching"
+  | "accessories";
+
+export type ExerciseType = "main" | "accessory";
 
 export type Intensity = "low" | "medium" | "high";
 
@@ -20,6 +23,7 @@ export interface Exercise {
   reps: number | string;
   locations?: string[];
   youtube?: string;
+  type?: ExerciseType; // "main" or "accessory"
 }
 
 export const exercises: Exercise[] = [
@@ -76,7 +80,17 @@ export const exercises: Exercise[] = [
   { id:"childpose", name:"Child's Pose", description:"Recovery stretch", muscleGroup:"stretching", intensity:"low", duration:60, sets:2, reps:"30 sec", locations:["gym"], youtube:"https://www.youtube.com/watch?v=eqVMAPM00DM"},
   { id:"hipflexor", name:"Hip Flexor Stretch", description:"Hip mobility", muscleGroup:"stretching", intensity:"low", duration:60, sets:2, reps:"30 sec", locations:["gym"], youtube:"https://www.youtube.com/watch?v=7bRaX6M2nr8"},
   { id:"spine", name:"Spinal Twist", description:"Back mobility", muscleGroup:"stretching", intensity:"low", duration:60, sets:2, reps:"30 sec", locations:["gym"], youtube:"https://www.youtube.com/watch?v=wkD8rjkodUI"},
-  { id:"neck", name:"Neck Stretch", description:"Neck mobility", muscleGroup:"stretching", intensity:"low", duration:60, sets:2, reps:"30 sec", locations:["gym"], youtube:"https://www.youtube.com/watch?v=2NOsE-VPpkE"}
+  { id:"neck", name:"Neck Stretch", description:"Neck mobility", muscleGroup:"stretching", intensity:"low", duration:60, sets:2, reps:"30 sec", locations:["gym"], youtube:"https://www.youtube.com/watch?v=2NOsE-VPpkE"},
+
+  // 🎯 ACCESSORIES (~3 minutes each)
+  { id:"facepull", name:"Face Pull", description:"Rear shoulder finisher", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"15-20", locations:["gym"], youtube:"https://www.youtube.com/watch?v=HSoHeSjvqZc", type:"accessory"},
+  { id:"armblaster", name:"Arm Blaster Curl", description:"Bicep isolation", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=sfJRf84cbg8", type:"accessory"},
+  { id:"flyes", name:"Cable Flyes", description:"Chest finisher", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=4Y2gMDj9100", type:"accessory"},
+  { id:"legcalf", name:"Calf Raises", description:"Lower leg burner", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"15-20", locations:["gym"], youtube:"https://www.youtube.com/watch?v=R5YMlR6VqFU", type:"accessory"},
+  { id:"absweighted", name:"Weighted Ab Crunch", description:"Core finisher", muscleGroup:"accessories", intensity:"medium", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=2fCzN6rP2cE", type:"accessory"},
+  { id:"shouldershrugger", name:"Barbell Shrug", description:"Trap strengthener", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=3-ygB1V4ZwU", type:"accessory"},
+  { id:"tricepext", name:"Rope Tricep Extension", description:"Arm finisher", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=6JK8Xp0BpFE", type:"accessory"},
+  { id:"hamcurl", name:"Seated Leg Curl", description:"Leg finisher", muscleGroup:"accessories", intensity:"low", duration:180, sets:3, reps:"12-15", locations:["gym"], youtube:"https://www.youtube.com/watch?v=1Tq3QdYUuHs", type:"accessory"},
 ];
 
 
@@ -86,6 +100,14 @@ export function getExercisesByMuscleGroup(muscleGroup: MuscleGroup): Exercise[] 
 
 export function getExercisesByIntensity(intensity: Intensity): Exercise[] {
   return exercises.filter(e => e.intensity === intensity);
+}
+
+export function getAccessories(): Exercise[] {
+  return exercises.filter(e => e.type === "accessory");
+}
+
+export function getMainExercises(): Exercise[] {
+  return exercises.filter(e => e.type !== "accessory");
 }
 
 export function formatDuration(seconds: number): string {

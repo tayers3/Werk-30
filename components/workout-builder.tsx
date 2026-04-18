@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { exercises, Exercise, MuscleGroup, Intensity } from "@/lib/exercises";
+import { exercises, Exercise, MuscleGroup, Intensity, getAccessories } from "@/lib/exercises";
 import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
 import { ExerciseCard } from "./exercise-card";
 import { WorkoutList } from "./workout-list";
@@ -18,6 +18,7 @@ import {
   Play,
   RotateCcw,
   Sparkles,
+  X,
 } from "lucide-react";
 
 const WORKOUT_DURATION = 30 * 60; // 30 minutes in seconds
@@ -42,22 +43,25 @@ const intensityFilters: { value: Intensity | "all"; label: string }[] = [
 export function WorkoutBuilder() {
   const router = useRouter();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
+  const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "all">("all");
   const [intensityFilter, setIntensityFilter] = useState<Intensity | "all">("all");
   const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
   const totalDuration = useMemo(
-    () => calculateTotalDuration(workoutExercises),
-    [workoutExercises]
+    () => calculateTotalDuration(workoutExercises, accessories),
+    [workoutExercises, accessories]
   );
 
   const filteredExercises = useMemo(() => {
-    return exercises.filter((ex) => {
-      const matchesMuscle = muscleFilter === "all" || ex.muscleGroup === muscleFilter;
-      const matchesIntensity = intensityFilter === "all" || ex.intensity === intensityFilter;
-      return matchesMuscle && matchesIntensity;
-    });
+    return exercises
+      .filter((ex) => ex.type !== "accessory") // Exclude accessories from main list
+      .filter((ex) => {
+        const matchesMuscle = muscleFilter === "all" || ex.muscleGroup === muscleFilter;
+        const matchesIntensity = intensityFilter === "all" || ex.intensity === intensityFilter;
+        return matchesMuscle && matchesIntensity;
+      });
   }, [muscleFilter, intensityFilter]);
 
   const selectedIds = useMemo(
@@ -100,8 +104,27 @@ export function WorkoutBuilder() {
     );
   };
 
+  const handleAddAccessory = (exercise: Exercise) => {
+    if (accessories.length >= 2) return; // Max 2 accessories
+
+    const newAccessory: WorkoutExercise = {
+      ...exercise,
+      order: accessories.length,
+      restAfter: 30, // default 30 seconds rest
+    };
+    setAccessories([...accessories, newAccessory]);
+  };
+
+  const handleRemoveAccessory = (order: number) => {
+    const updated = accessories
+      .filter((acc) => acc.order !== order)
+      .map((acc, i) => ({ ...acc, order: i }));
+    setAccessories(updated);
+  };
+
   const handleReset = () => {
     setWorkoutExercises([]);
+    setAccessories([]);
     setIsComplete(false);
   };
 
@@ -129,14 +152,19 @@ export function WorkoutBuilder() {
   const canStartWorkout = workoutExercises.length >= 3 && totalDuration >= 10 * 60;
 
   const handleCraftWorkout = () => {
-    const workoutData = encodeURIComponent(JSON.stringify(workoutExercises));
-    router.push(`/workout?workout=${workoutData}`);
+    const workoutData = {
+      exercises: workoutExercises,
+      accessories: accessories,
+    };
+    const encoded = encodeURIComponent(JSON.stringify(workoutData));
+    router.push(`/workout?workout=${encoded}`);
   };
 
   if (showTimer) {
     return (
       <WorkoutTimer
         exercises={workoutExercises}
+        accessories={accessories}
         onComplete={() => setIsComplete(true)}
         onClose={() => setShowTimer(false)}
       />
@@ -270,6 +298,35 @@ export function WorkoutBuilder() {
                     }
                   />
                 ))}
+              </div>
+            </div>
+
+            {/* Accessories section */}
+            <div className="border-t border-border pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Add Accessories
+                  <span className="text-xs font-normal text-muted-foreground ml-2">
+                    (max 2, ~3 min each)
+                  </span>
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  {accessories.length}/2
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {getAccessories().map((accessory) => {
+                  const selected = accessories.some((acc) => acc.id === accessory.id);
+                  return (
+                    <ExerciseCard
+                      key={accessory.id}
+                      exercise={accessory}
+                      onAdd={handleAddAccessory}
+                      isSelected={selected}
+                      disabled={accessories.length >= 2 && !selected}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -9,12 +9,15 @@ export interface WorkoutPlan {
   id: string;
   name: string;
   exercises: WorkoutExercise[];
+  accessories: WorkoutExercise[]; // up to 2 accessories
   totalDuration: number;
   createdAt: Date;
 }
 
-export function calculateTotalDuration(exercises: WorkoutExercise[]): number {
-  return exercises.reduce((total, ex) => total + ex.duration + ex.restAfter, 0);
+export function calculateTotalDuration(exercises: WorkoutExercise[], accessories: WorkoutExercise[] = []): number {
+  const exerciseDuration = exercises.reduce((total, ex) => total + ex.duration + ex.restAfter, 0);
+  const accessoryDuration = accessories.reduce((total, acc) => total + acc.duration + acc.restAfter, 0);
+  return exerciseDuration + accessoryDuration;
 }
 
 export function generateWorkoutId(): string {

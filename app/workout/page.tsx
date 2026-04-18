@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { WorkoutExercise } from "@/lib/workout-store";
+import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
 import { WorkoutList } from "@/components/workout-list";
 import { WorkoutTimer } from "@/components/workout-timer";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export default function WorkoutPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
+  const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
@@ -20,7 +21,14 @@ export default function WorkoutPage() {
     if (workoutData) {
       try {
         const parsed = JSON.parse(decodeURIComponent(workoutData));
-        setWorkoutExercises(parsed);
+        // Handle both old format (array) and new format (object with exercises/accessories)
+        if (Array.isArray(parsed)) {
+          setWorkoutExercises(parsed);
+          setAccessories([]);
+        } else {
+          setWorkoutExercises(parsed.exercises || []);
+          setAccessories(parsed.accessories || []);
+        }
       } catch (error) {
         console.error("Failed to parse workout data:", error);
         router.push("/");
@@ -29,6 +37,8 @@ export default function WorkoutPage() {
       router.push("/");
     }
   }, [searchParams, router]);
+
+  const totalDuration = calculateTotalDuration(workoutExercises, accessories);
 
   const handleStartWorkout = () => {
     setShowTimer(true);
@@ -42,6 +52,7 @@ export default function WorkoutPage() {
     return (
       <WorkoutTimer
         exercises={workoutExercises}
+        accessories={accessories}
         onComplete={() => setIsComplete(true)}
         onClose={() => setShowTimer(false)}
       />
@@ -81,7 +92,7 @@ export default function WorkoutPage() {
               <div>
                 <h1 className="text-xl font-bold text-foreground">Your Workout</h1>
                 <p className="text-xs text-muted-foreground">
-                  {workoutExercises.length} exercises • Ready to start
+                  {workoutExercises.length} exercises{accessories.length > 0 ? ` + ${accessories.length} accessories` : ""} • Ready to start
                 </p>
               </div>
             </div>

@@ -19,24 +19,26 @@ import { Button } from "@/components/ui/button";
 
 interface WorkoutTimerProps {
   exercises: WorkoutExercise[];
+  accessories?: WorkoutExercise[];
   onComplete: () => void;
   onClose: () => void;
 }
 
 type Phase = "exercise" | "rest" | "complete";
 
-export function WorkoutTimer({ exercises, onComplete, onClose }: WorkoutTimerProps) {
+export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose }: WorkoutTimerProps) {
+  const allExercises = [...exercises, ...accessories];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("exercise");
-  const [timeRemaining, setTimeRemaining] = useState(exercises[0]?.duration || 0);
+  const [timeRemaining, setTimeRemaining] = useState(allExercises[0]?.duration || 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [totalElapsed, setTotalElapsed] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const currentExercise = exercises[currentIndex];
-  const nextExercise = exercises[currentIndex + 1];
+  const currentExercise = allExercises[currentIndex];
+  const nextExercise = allExercises[currentIndex + 1];
 
   const playBeep = useCallback((frequency: number = 800, duration: number = 150) => {
     if (isMuted) return;
@@ -95,15 +97,15 @@ export function WorkoutTimer({ exercises, onComplete, onClose }: WorkoutTimerPro
       setPhase("exercise");
       setTimeRemaining(exercises[currentIndex - 1].duration);
     }
-  }, [phase, currentExercise, currentIndex, exercises]);
+  }, [phase, currentExercise, currentIndex, allExercises]);
 
   const resetWorkout = useCallback(() => {
     setCurrentIndex(0);
     setPhase("exercise");
-    setTimeRemaining(exercises[0]?.duration || 0);
+    setTimeRemaining(allExercises[0]?.duration || 0);
     setIsPlaying(false);
     setTotalElapsed(0);
-  }, [exercises]);
+  }, [allExercises]);
 
   useEffect(() => {
     if (!isPlaying || phase === "complete") return;
@@ -126,10 +128,10 @@ export function WorkoutTimer({ exercises, onComplete, onClose }: WorkoutTimerPro
     return () => clearInterval(interval);
   }, [isPlaying, phase, goToNext, playBeep]);
 
-  if (exercises.length === 0) return null;
+  if (allExercises.length === 0) return null;
 
-  const totalWorkoutTime = exercises.reduce(
-    (total, ex, i) => total + ex.duration + (i < exercises.length - 1 ? ex.restAfter : 0),
+  const totalWorkoutTime = allExercises.reduce(
+    (total, ex, i) => total + ex.duration + (i < allExercises.length - 1 ? ex.restAfter : 0),
     0
   );
 
@@ -147,7 +149,7 @@ export function WorkoutTimer({ exercises, onComplete, onClose }: WorkoutTimerPro
           <span className="text-sm">Exit</span>
         </button>
         <div className="text-sm text-muted-foreground">
-          Exercise {currentIndex + 1} of {exercises.length}
+          Exercise {currentIndex + 1} of {allExercises.length}
         </div>
         <button
           onClick={() => setIsMuted(!isMuted)}
