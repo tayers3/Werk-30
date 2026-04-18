@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'FlexFit - 30 Minute Workout Builder',
+  title: 'WERK 30 - 30 Minute Workout Builder',
   description: 'Build your perfect 30-minute workout plan with customizable exercises',
   generator: 'v0.app',
   icons: {
