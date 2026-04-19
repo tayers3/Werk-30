@@ -4,7 +4,7 @@ import { WorkoutExercise } from "@/lib/workout-store";
 import { formatDuration, formatTotalTime } from "@/lib/exercises";
 import { cn } from "@/lib/utils";
 import { GripVertical, X, Clock, Pause } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface WorkoutListProps {
   exercises: WorkoutExercise[];
@@ -26,14 +26,27 @@ export function WorkoutList({
   maxDuration,
 }: WorkoutListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Set a custom drag image for better visual feedback
+    const dragElement = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(dragElement, 0, 0);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    e.dataTransfer.dropEffect = "move";
+    
+    if (draggedIndex === null || draggedIndex === index) {
+      setDragOverIndex(null);
+      return;
+    }
+
+    setDragOverIndex(index);
 
     const newExercises = [...exercises];
     const draggedItem = newExercises[draggedIndex];
@@ -46,8 +59,22 @@ export function WorkoutList({
     setDraggedIndex(index);
   };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the list entirely
+    if (e.currentTarget === listRef.current) {
+      setDragOverIndex(null);
+    }
+  };
+
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const remainingTime = maxDuration - totalDuration;
@@ -81,7 +108,12 @@ export function WorkoutList({
       </div>
 
       {/* Exercise list */}
-      <div className="flex-1 overflow-auto space-y-2 min-h-0">
+      <div 
+        ref={listRef}
+        className="flex-1 overflow-auto space-y-2 min-h-0"
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {exercises.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mb-4">
@@ -93,19 +125,29 @@ export function WorkoutList({
           </div>
         ) : (
           exercises.map((exercise, index) => (
-            <div key={`${exercise.id}-${index}`}>
+            <div 
+              key={`${exercise.id}-${index}`}
+              className={cn(
+                "transition-all duration-200",
+                dragOverIndex === index && draggedIndex !== index && "scale-105"
+              )}
+            >
               <div
                 draggable
-                onDragStart={() => handleDragStart(index)}
+                onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border border-border bg-card p-3 transition-all",
-                  draggedIndex === index && "opacity-50 scale-95"
+                  "flex items-center gap-2 rounded-lg border-2 bg-card p-3 transition-all duration-200 cursor-grab active:cursor-grabbing",
+                  draggedIndex === index 
+                    ? "opacity-50 scale-95 border-primary/30 bg-primary/5" 
+                    : dragOverIndex === index
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-border/80"
                 )}
               >
-                <button className="cursor-grab active:cursor-grabbing touch-none">
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                <button className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                  <GripVertical className="h-4 w-4" />
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -123,6 +165,7 @@ export function WorkoutList({
                 <button
                   onClick={() => onRemove(exercise.order)}
                   className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-destructive/20 transition-colors shrink-0"
+                  title="Remove exercise"
                 >
                   <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                 </button>

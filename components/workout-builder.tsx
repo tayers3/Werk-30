@@ -3,11 +3,13 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { exercises, Exercise, MuscleGroup, Intensity, getAccessories } from "@/lib/exercises";
-import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
+import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId } from "@/lib/workout-store";
 import { ExerciseCard } from "./exercise-card";
 import { WorkoutList } from "./workout-list";
 import { WorkoutTimer } from "./workout-timer";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import {
   Dumbbell,
@@ -19,6 +21,7 @@ import {
   RotateCcw,
   Sparkles,
   X,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 
 const WORKOUT_DURATION = 30 * 60; // 30 minutes in seconds
@@ -48,6 +51,8 @@ export function WorkoutBuilder() {
   const [intensityFilter, setIntensityFilter] = useState<Intensity | "all">("all");
   const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | undefined>(new Date());
 
   const totalDuration = useMemo(
     () => calculateTotalDuration(workoutExercises, accessories),
@@ -160,6 +165,22 @@ export function WorkoutBuilder() {
     router.push(`/workout?workout=${encoded}`);
   };
 
+  const handleScheduleWorkout = () => {
+    if (!selectedScheduleDate) return;
+    const workoutPlan: WorkoutPlan = {
+      id: generateWorkoutId(),
+      name: `Custom Workout ${selectedScheduleDate.toLocaleDateString()}`,
+      exercises: workoutExercises,
+      accessories: accessories,
+      totalDuration,
+      createdAt: new Date(),
+    };
+    const dateStr = selectedScheduleDate.toISOString().split('T')[0];
+    useWorkoutStore.getState().addScheduledWorkout(dateStr, workoutPlan);
+    setShowScheduleDialog(false);
+    alert(`Workout scheduled for ${selectedScheduleDate.toLocaleDateString()}! Check the calendar.`);
+  };
+
   if (showTimer) {
     return (
       <WorkoutTimer
@@ -190,6 +211,14 @@ export function WorkoutBuilder() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => router.push('/calendar')}
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Calendar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleReset}
                 disabled={workoutExercises.length === 0}
               >
@@ -204,6 +233,40 @@ export function WorkoutBuilder() {
                 <Play className="h-4 w-4 mr-2" />
                 Craft Workout
               </Button>
+              <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canStartWorkout}
+                  >
+                    <Timer className="h-4 w-4 mr-2" />
+                    Schedule Workout
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Schedule Your Workout</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Calendar
+                      mode="single"
+                      selected={selectedScheduleDate}
+                      onSelect={setSelectedScheduleDate}
+                      disabled={(date) => date < new Date()}
+                      className="rounded-md border"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowScheduleDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleScheduleWorkout} disabled={!selectedScheduleDate}>
+                        Schedule
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>

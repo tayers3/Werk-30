@@ -24,6 +24,7 @@ const muscleGroupLabels = {
   core: "Core",
   cardio: "Cardio",
   stretching: "Stretching",
+  accessories: "Accessories",
 };
 
 export function ExerciseCard({

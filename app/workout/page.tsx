@@ -1,20 +1,21 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
 import { WorkoutList } from "@/components/workout-list";
 import { WorkoutTimer } from "@/components/workout-timer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Timer } from "lucide-react";
 
-export default function WorkoutPage() {
+function WorkoutPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
 
   useEffect(() => {
     const workoutData = searchParams.get("workout");
@@ -29,6 +30,7 @@ export default function WorkoutPage() {
           setWorkoutExercises(parsed.exercises || []);
           setAccessories(parsed.accessories || []);
         }
+        setShowWelcomeMessage(true);
       } catch (error) {
         console.error("Failed to parse workout data:", error);
         router.push("/");
@@ -108,6 +110,14 @@ export default function WorkoutPage() {
         </div>
       </header>
 
+      {showWelcomeMessage && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-center text-primary-foreground shadow-sm">
+            Congratulations you made the first step!! It's time to put the work in!!
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
@@ -125,10 +135,26 @@ export default function WorkoutPage() {
             onRemove={() => {}} // Read-only on this page
             onReorder={() => {}} // Read-only on this page
             onRestChange={() => {}} // Read-only on this page
-            readOnly={true}
+            totalDuration={totalDuration}
+            maxDuration={30 * 60}
           />
         </div>
       </main>
     </div>
+  );
+}
+
+export default function WorkoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your workout...</p>
+        </div>
+      </div>
+    }>
+      <WorkoutPageContent />
+    </Suspense>
   );
 }

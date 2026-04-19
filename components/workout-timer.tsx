@@ -14,6 +14,9 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Check,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -34,11 +37,35 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [totalElapsed, setTotalElapsed] = useState(0);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [stopTime, setStopTime] = useState<Date | null>(null);
+  const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const currentExercise = allExercises[currentIndex];
   const nextExercise = allExercises[currentIndex + 1];
+
+  const handleStartWorkout = () => {
+    setStartTime(new Date());
+    setStopTime(null);
+    setIsPlaying(true);
+  };
+
+  const handleStopWorkout = () => {
+    setStopTime(new Date());
+    setIsPlaying(false);
+  };
+
+  const toggleExerciseComplete = (index: number) => {
+    const newCompleted = new Set(completedExercises);
+    if (newCompleted.has(index)) {
+      newCompleted.delete(index);
+    } else {
+      newCompleted.add(index);
+    }
+    setCompletedExercises(newCompleted);
+  };
 
   const playBeep = useCallback((frequency: number = 800, duration: number = 150) => {
     if (isMuted) return;
@@ -105,6 +132,9 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
     setTimeRemaining(allExercises[0]?.duration || 0);
     setIsPlaying(false);
     setTotalElapsed(0);
+    setStartTime(null);
+    setStopTime(null);
+    setCompletedExercises(new Set());
   }, [allExercises]);
 
   useEffect(() => {
@@ -128,6 +158,16 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
     return () => clearInterval(interval);
   }, [isPlaying, phase, goToNext, playBeep]);
 
+  const formatTime = (date: Date | null) => {
+    if (!date) return "--:--";
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  };
+
   if (allExercises.length === 0) return null;
 
   const totalWorkoutTime = allExercises.reduce(
@@ -148,15 +188,44 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
           <X className="h-5 w-5" />
           <span className="text-sm">Exit</span>
         </button>
-        <div className="text-sm text-muted-foreground">
-          Exercise {currentIndex + 1} of {allExercises.length}
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground">Start:</span>
+              <span className="font-mono text-sm font-semibold text-foreground">
+                {formatTime(startTime)}
+              </span>
+            </div>
+          </div>
+          {startTime && (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">Stop:</span>
+                <span className="font-mono text-sm font-semibold text-foreground">
+                  {formatTime(stopTime)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-        <button
-          onClick={() => setIsMuted(!isMuted)}
-          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {startTime && !stopTime && (
+            <button
+              onClick={handleStopWorkout}
+              className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 text-sm font-medium transition-colors"
+            >
+              Stop
+            </button>
+          )}
+          <button
+            onClick={() => setIsMuted(!isMuted)}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -275,7 +344,13 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
                 <ChevronLeft className="h-6 w-6" />
               </button>
               <button
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={() => {
+                  if (!isPlaying && !startTime) {
+                    handleStartWorkout();
+                  } else {
+                    setIsPlaying(!isPlaying);
+                  }
+                }}
                 className={cn(
                   "p-6 rounded-full transition-colors",
                   isPlaying
@@ -307,22 +382,34 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
       {/* Footer - exercise list preview */}
       {phase !== "complete" && (
         <div className="border-t border-border p-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {exercises.map((ex, i) => (
-              <div
-                key={`${ex.id}-${i}`}
-                className={cn(
-                  "flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-all",
-                  i === currentIndex
-                    ? "bg-primary text-primary-foreground"
-                    : i < currentIndex
-                    ? "bg-primary/20 text-primary"
-                    : "bg-secondary text-muted-foreground"
-                )}
-              >
-                {ex.name}
-              </div>
-            ))}
+          <div className="mb-2">
+            <h3 className="text-sm font-semibold text-foreground mb-2">
+              Exercises ({completedExercises.size}/{allExercises.length})
+            </h3>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {allExercises.map((ex, i) => (
+                <button
+                  key={`${ex.id}-${i}`}
+                  onClick={() => toggleExerciseComplete(i)}
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all",
+                    i === currentIndex
+                      ? "bg-primary text-primary-foreground"
+                      : i < currentIndex
+                      ? "bg-primary/20 text-primary"
+                      : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  )}
+                  title="Click to mark completed"
+                >
+                  {completedExercises.has(i) ? (
+                    <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                  ) : (
+                    <Square className="h-3.5 w-3.5 flex-shrink-0" />
+                  )}
+                  <span className="truncate">{ex.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
