@@ -1,8 +1,8 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react";
-import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
+import { WorkoutExercise, calculateTotalDuration, useWorkoutStore } from "@/lib/workout-store";
 import { WorkoutList } from "@/components/workout-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,8 @@ import { formatTotalTime } from "@/lib/exercises";
 import { cn } from "@/lib/utils";
 
 function WorkoutPageContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
+  const { pendingWorkout, clearPendingWorkout } = useWorkoutStore();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [isComplete, setIsComplete] = useState(false);
@@ -242,27 +242,16 @@ function WorkoutPageContent() {
   };
 
   useEffect(() => {
-    const workoutData = searchParams.get("workout");
-    if (workoutData) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(workoutData));
-        // Handle both old format (array) and new format (object with exercises/accessories)
-        if (Array.isArray(parsed)) {
-          setWorkoutExercises(parsed);
-          setAccessories([]);
-        } else {
-          setWorkoutExercises(parsed.exercises || []);
-          setAccessories(parsed.accessories || []);
-        }
-        setShowWelcomeMessage(true);
-      } catch (error) {
-        console.error("Failed to parse workout data:", error);
-        router.push("/");
-      }
+    if (pendingWorkout) {
+      setWorkoutExercises(pendingWorkout.exercises);
+      setAccessories(pendingWorkout.accessories);
+      setShowWelcomeMessage(true);
+      clearPendingWorkout();
     } else {
       router.push("/");
     }
-  }, [searchParams, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const totalDuration = calculateTotalDuration(workoutExercises, accessories);
 

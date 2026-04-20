@@ -159,12 +159,11 @@ export function WorkoutBuilder() {
   const canStartWorkout = workoutExercises.length >= 3 && totalDuration >= 10 * 60;
 
   const handleCraftWorkout = () => {
-    const workoutData = {
+    useWorkoutStore.getState().setPendingWorkout({
       exercises: workoutExercises,
       accessories: accessories,
-    };
-    const encoded = encodeURIComponent(JSON.stringify(workoutData));
-    router.push(`/workout?workout=${encoded}`);
+    });
+    router.push("/workout");
   };
 
   const handleScheduleWorkout = () => {

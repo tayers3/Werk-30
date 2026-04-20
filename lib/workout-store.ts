@@ -30,6 +30,9 @@ export interface ScheduledWorkout {
 interface WorkoutStore {
   scheduledWorkouts: ScheduledWorkout[];
   savedWorkouts: SavedWorkout[];
+  pendingWorkout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] } | null;
+  setPendingWorkout: (workout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] }) => void;
+  clearPendingWorkout: () => void;
   addScheduledWorkout: (date: string, workoutPlan: WorkoutPlan) => void;
   removeScheduledWorkout: (id: string) => void;
   markCompleted: (id: string) => void;
@@ -44,6 +47,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
     (set, get) => ({
       scheduledWorkouts: [],
       savedWorkouts: [],
+      pendingWorkout: null,
+      setPendingWorkout: (workout) => set({ pendingWorkout: workout }),
+      clearPendingWorkout: () => set({ pendingWorkout: null }),
       addScheduledWorkout: (date, workoutPlan) => {
         const newScheduled: ScheduledWorkout = {
           id: generateWorkoutId(),

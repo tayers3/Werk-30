@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { SavedWorkout, useWorkoutStore } from "@/lib/workout-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 
 export function SavedWorkouts() {
+  const router = useRouter();
   const { savedWorkouts, removeSavedWorkout, updateSavedWorkoutLabel, addScheduledWorkout } = useWorkoutStore();
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<SavedWorkout | null>(null);
@@ -49,12 +51,11 @@ export function SavedWorkouts() {
   };
 
   const handleStartWorkout = (workout: SavedWorkout) => {
-    const workoutData = {
+    useWorkoutStore.getState().setPendingWorkout({
       exercises: workout.exercises,
       accessories: workout.accessories,
-    };
-    const encoded = encodeURIComponent(JSON.stringify(workoutData));
-    window.location.href = `/workout?workout=${encoded}`;
+    });
+    router.push("/workout");
   };
 
   const openScheduleDialog = (workout: SavedWorkout) => {

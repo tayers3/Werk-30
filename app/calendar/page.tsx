@@ -22,12 +22,11 @@ export default function CalendarPage() {
   };
 
   const handleStartWorkout = (workout: any) => {
-    const workoutData = {
+    useWorkoutStore.getState().setPendingWorkout({
       exercises: workout.workoutPlan.exercises,
-      accessories: workout.workoutPlan.accessories,
-    };
-    const encoded = encodeURIComponent(JSON.stringify(workoutData));
-    router.push(`/workout?workout=${encoded}`);
+      accessories: workout.workoutPlan.accessories ?? [],
+    });
+    router.push("/workout");
   };
 
   const getDaysWithWorkouts = () => {
