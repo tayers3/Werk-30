@@ -6,7 +6,7 @@ import { WorkoutExercise, calculateTotalDuration, useWorkoutStore } from "@/lib/
 import { WorkoutList } from "@/components/workout-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer } from "lucide-react";
+import { ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer, StopCircle, LogOut } from "lucide-react";
 import { formatTotalTime } from "@/lib/exercises";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +103,14 @@ function WorkoutPageContent() {
     setIsPlaying(false);
     setPhase("complete");
     setIsComplete(true);
+  };
+
+  const handleStopTimer = () => {
+    // Stop and reset just the current exercise timer
+    setIsPlaying(false);
+    setPhase("exercise");
+    setCurrentSet(1);
+    setTimeRemaining(currentExercise?.duration || 0);
   };
 
   const goToNext = useCallback(() => {
@@ -430,45 +438,70 @@ function WorkoutPageContent() {
               </div>
 
               {/* Controls */}
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex items-center gap-3">
-                  {!isPlaying ? (
-                    <Button onClick={handleResumeWorkout} size="lg" className="px-6">
+              <div className="flex flex-col items-center gap-3">
+                {/* Row 1: Start / Pause / Resume / Stop / End */}
+                <div className="flex items-center gap-2 flex-wrap justify-center">
+                  {!startTime ? (
+                    /* ── START ── */
+                    <Button onClick={handleStartWorkout} size="lg" className="px-8">
                       <Play className="h-5 w-5 mr-2" />
-                      Resume
+                      Start
                     </Button>
                   ) : (
-                    <Button onClick={handlePauseWorkout} variant="secondary" size="lg" className="px-6">
-                      <Pause className="h-5 w-5 mr-2" />
-                      Pause
-                    </Button>
+                    <>
+                      {/* ── PAUSE / RESUME ── */}
+                      {isPlaying ? (
+                        <Button onClick={handlePauseWorkout} variant="secondary" size="lg" className="px-6">
+                          <Pause className="h-5 w-5 mr-2" />
+                          Pause
+                        </Button>
+                      ) : (
+                        <Button onClick={handleResumeWorkout} size="lg" className="px-6">
+                          <Play className="h-5 w-5 mr-2" />
+                          Resume
+                        </Button>
+                      )}
+
+                      {/* ── STOP (reset current timer) ── */}
+                      <Button onClick={handleStopTimer} variant="outline" size="lg" className="px-6">
+                        <StopCircle className="h-5 w-5 mr-2" />
+                        Stop
+                      </Button>
+
+                      {/* ── END WORKOUT ── */}
+                      <Button onClick={handleEndWorkout} variant="destructive" size="lg" className="px-6">
+                        <LogOut className="h-5 w-5 mr-2" />
+                        End Workout
+                      </Button>
+                    </>
                   )}
-                  <Button onClick={handleEndWorkout} variant="destructive" size="lg" className="px-6">
-                    <Square className="h-5 w-5 mr-2" />
-                    End Workout
-                  </Button>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={goToPrevious}
-                    variant="outline"
-                    size="lg"
-                    disabled={currentIndex === 0 && phase === "exercise"}
-                    className="px-4"
-                  >
-                    <ChevronLeft className="h-5 w-5 mr-1" />
-                    Previous
-                  </Button>
-                  <Button
-                    onClick={goToNext}
-                    variant="outline"
-                    size="lg"
-                    className="px-4"
-                  >
-                    Next
-                    <ChevronRight className="h-5 w-5 ml-1" />
-                  </Button>
-                </div>
+
+                {/* Row 2: Previous / Next exercise */}
+                {startTime && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={goToPrevious}
+                      variant="outline"
+                      size="lg"
+                      disabled={currentIndex === 0 && phase === "exercise" && currentSet === 1}
+                      className="px-4"
+                    >
+                      <ChevronLeft className="h-5 w-5 mr-1" />
+                      Previous Exercise
+                    </Button>
+                    <Button
+                      onClick={goToNext}
+                      variant="outline"
+                      size="lg"
+                      disabled={currentIndex === allExercises.length - 1 && phase === "exercise" && currentSet === currentExercise?.sets}
+                      className="px-4"
+                    >
+                      Next Exercise
+                      <ChevronRight className="h-5 w-5 ml-1" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   Play,
   Pause,
-  SkipForward,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -17,6 +16,8 @@ import {
   Clock,
   Check,
   Square,
+  StopCircle,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -53,8 +54,10 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
   };
 
   const handleStopWorkout = () => {
-    setStopTime(new Date());
+    // Stop and reset the current exercise timer (does not end the workout)
     setIsPlaying(false);
+    setPhase("exercise");
+    setTimeRemaining(currentExercise?.duration || 0);
   };
 
   const handleEndWorkout = () => {
@@ -334,54 +337,67 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
             )}
 
             {/* Controls */}
-            <div className="flex flex-col items-center gap-4">
-              {/* Main control buttons */}
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center gap-3">
+              {/* Row 1: Start / Pause / Resume / Stop / End */}
+              <div className="flex items-center gap-2 flex-wrap justify-center">
                 {!startTime ? (
-                  <Button
-                    onClick={handleStartWorkout}
-                    size="lg"
-                    className="px-8"
-                  >
+                  /* ── START ── */
+                  <Button onClick={handleStartWorkout} size="lg" className="px-8">
                     <Play className="h-5 w-5 mr-2" />
-                    Start Workout
+                    Start
                   </Button>
                 ) : (
                   <>
+                    {/* ── PAUSE / RESUME ── */}
+                    {isPlaying ? (
+                      <Button
+                        onClick={() => setIsPlaying(false)}
+                        variant="secondary"
+                        size="lg"
+                        className="px-6"
+                      >
+                        <Pause className="h-5 w-5 mr-2" />
+                        Pause
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => setIsPlaying(true)}
+                        size="lg"
+                        className="px-6"
+                      >
+                        <Play className="h-5 w-5 mr-2" />
+                        Resume
+                      </Button>
+                    )}
+
+                    {/* ── STOP (reset current timer) ── */}
                     <Button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      variant={isPlaying ? "secondary" : "default"}
+                      onClick={handleStopWorkout}
+                      variant="outline"
                       size="lg"
                       className="px-6"
                     >
-                      {isPlaying ? (
-                        <>
-                          <Pause className="h-5 w-5 mr-2" />
-                          Pause
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-5 w-5 mr-2" />
-                          Resume
-                        </>
-                      )}
+                      <StopCircle className="h-5 w-5 mr-2" />
+                      Stop
                     </Button>
+
+                    {/* ── END WORKOUT ── */}
                     <Button
                       onClick={handleEndWorkout}
                       variant="destructive"
                       size="lg"
                       className="px-6"
                     >
-                      <Square className="h-5 w-5 mr-2" />
+                      <LogOut className="h-5 w-5 mr-2" />
                       End Workout
                     </Button>
                   </>
                 )}
               </div>
 
-              {/* Exercise navigation buttons */}
+              {/* Row 2: Previous / Next exercise (only once started) */}
               {startTime && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <Button
                     onClick={goToPrevious}
                     variant="outline"
@@ -390,15 +406,16 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
                     className="px-4"
                   >
                     <ChevronLeft className="h-5 w-5 mr-1" />
-                    Previous Exercise
+                    Previous
                   </Button>
                   <Button
                     onClick={goToNext}
                     variant="outline"
                     size="lg"
+                    disabled={currentIndex === allExercises.length - 1 && phase === "exercise"}
                     className="px-4"
                   >
-                    Next Exercise
+                    Next
                     <ChevronRight className="h-5 w-5 ml-1" />
                   </Button>
                 </div>
