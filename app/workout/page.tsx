@@ -258,7 +258,7 @@ function WorkoutPageContent() {
     <div className="min-h-screen bg-background pb-36">{/* pb-36 reserves space for sticky controls */}
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
@@ -324,7 +324,7 @@ function WorkoutPageContent() {
       })()}
 
       {showWelcomeMessage && !startTime && (
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-center shadow-sm">
             <p className="font-semibold text-primary">You’ve got this! 💪</p>
             <p className="text-sm text-muted-foreground mt-1">Build and complete a structured 30-minute workout based on your preferences.</p>

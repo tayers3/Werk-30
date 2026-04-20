@@ -96,7 +96,7 @@ export default function WorkoutIntakePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center gap-3">
           <button
             onClick={() => router.back()}
             className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -110,7 +110,7 @@ export default function WorkoutIntakePage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-10">
+      <main className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-8 sm:space-y-10">
         {/* Step indicator */}
         <div className="flex items-center gap-2">
           <div className={cn("h-2 flex-1 rounded-full transition-all", selectedGoal ? "bg-primary" : "bg-border")} />

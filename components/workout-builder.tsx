@@ -354,52 +354,58 @@ export function WorkoutBuilder() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-                <Timer className="h-5 w-5 text-primary-foreground" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary flex items-center justify-center">
+                <Timer className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">WERK 30</h1>
-                <p className="text-xs text-muted-foreground">30-Minute Workout Builder</p>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground">WERK 30</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">30-Minute Workout Builder</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/weekly-split')}
+                title="Weekly Split"
+                className="px-2 sm:px-3"
               >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Weekly Split
+                <CalendarIcon className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Weekly Split</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/saved-splits')}
+                title="Saved Splits"
+                className="px-2 sm:px-3"
               >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Saved Splits
+                <CalendarIcon className="h-4 w-4" />
+                <span className="hidden md:inline ml-2">Saved Splits</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/saved-workouts')}
+                title="Saved Workouts"
+                className="px-2 sm:px-3"
               >
-                <Target className="h-4 w-4 mr-2" />
-                Saved Workouts
+                <Target className="h-4 w-4" />
+                <span className="hidden md:inline ml-2">Saved Workouts</span>
               </Button>
               {workoutIntake && (
                 <button
                   onClick={() => router.push('/workout-intake')}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-all"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-all"
                   title="Change training preferences"
                 >
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-secondary-foreground">{INTAKE_GOAL_LABELS[workoutIntake.goal]}</span>
-                  <span className="text-muted-foreground">·</span>
-                  <span className="text-muted-foreground">{INTAKE_FOCUS_LABELS[workoutIntake.focus]}</span>
+                  <span className="text-secondary-foreground hidden lg:inline">{INTAKE_GOAL_LABELS[workoutIntake.goal]}</span>
+                  <span className="text-muted-foreground hidden lg:inline">·</span>
+                  <span className="text-muted-foreground hidden lg:inline">{INTAKE_FOCUS_LABELS[workoutIntake.focus]}</span>
                 </button>
               )}
               <Button
@@ -407,17 +413,21 @@ export function WorkoutBuilder() {
                 size="sm"
                 onClick={handleReset}
                 disabled={workoutExercises.length === 0}
+                title="Reset"
+                className="px-2 sm:px-3"
               >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
+                <RotateCcw className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Reset</span>
               </Button>
               <Button
                 size="sm"
                 onClick={handleCraftWorkout}
                 disabled={!canStartWorkout}
+                title="Craft Workout"
+                className="px-2 sm:px-3"
               >
-                <Play className="h-4 w-4 mr-2" />
-                Craft Workout
+                <Play className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Craft Workout</span>
               </Button>
               <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
                 <DialogTrigger asChild>
@@ -425,9 +435,11 @@ export function WorkoutBuilder() {
                     variant="outline"
                     size="sm"
                     disabled={!canStartWorkout}
+                    title="Schedule Workout"
+                    className="px-2 sm:px-3"
                   >
-                    <Timer className="h-4 w-4 mr-2" />
-                    Schedule Workout
+                    <Timer className="h-4 w-4" />
+                    <span className="hidden lg:inline ml-2">Schedule Workout</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -459,9 +471,11 @@ export function WorkoutBuilder() {
                     variant="outline"
                     size="sm"
                     disabled={!canStartWorkout}
+                    title="Save Workout"
+                    className="px-2 sm:px-3"
                   >
-                    <Target className="h-4 w-4 mr-2" />
-                    Save Workout
+                    <Target className="h-4 w-4" />
+                    <span className="hidden lg:inline ml-2">Save Workout</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -498,7 +512,7 @@ export function WorkoutBuilder() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* App description */}
         <div className="mb-6 rounded-xl border border-border bg-card/60 px-5 py-4">
           <p className="text-sm text-muted-foreground">

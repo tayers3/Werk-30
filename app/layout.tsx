@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: 'WERK 30 - 30 Minute Workout Builder',
   description: 'Build your perfect 30-minute workout plan with customizable exercises',
   generator: 'v0.app',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: 'cover',
+  },
   icons: {
     icon: [
       {
