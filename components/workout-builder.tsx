@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { exercises, Exercise, MuscleGroup, Intensity, getAccessories } from "@/lib/exercises";
 import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId, StrengthMaxes } from "@/lib/workout-store";
@@ -165,6 +165,13 @@ export function WorkoutBuilder() {
 
   const [workoutGoal, setWorkoutGoal] = useState<WorkoutGoal>(derivedGoal);
 
+  // Re-sync workoutGoal whenever the user updates their intake preferences
+  useEffect(() => {
+    if (workoutIntake) {
+      setWorkoutGoal(GOAL_TO_WORKOUT_GOAL[workoutIntake.goal]);
+    }
+  }, [workoutIntake]);
+
   const totalDuration = useMemo(
     () => calculateTotalDuration(workoutExercises, accessories),
     [workoutExercises, accessories]
@@ -240,6 +247,14 @@ export function WorkoutBuilder() {
     setWorkoutExercises(
       workoutExercises.map((ex) =>
         ex.order === order ? { ...ex, reps } : ex
+      )
+    );
+  };
+
+  const handleUpdateDuration = (order: number, duration: number) => {
+    setWorkoutExercises(
+      workoutExercises.map((ex) =>
+        ex.order === order ? { ...ex, duration: Math.max(1, duration) } : ex
       )
     );
   };
@@ -376,15 +391,16 @@ export function WorkoutBuilder() {
                 Saved Workouts
               </Button>
               {workoutIntake && (
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => router.push('/workout-intake')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-all"
                   title="Change training preferences"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Preferences
-                </Button>
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-secondary-foreground">{INTAKE_GOAL_LABELS[workoutIntake.goal]}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">{INTAKE_FOCUS_LABELS[workoutIntake.focus]}</span>
+                </button>
               )}
               <Button
                 variant="outline"
@@ -755,6 +771,7 @@ export function WorkoutBuilder() {
                 onRestChange={handleRestChange}
                 onSetsChange={handleUpdateSets}
                 onRepsChange={handleUpdateReps}
+                onDurationChange={handleUpdateDuration}
                 totalDuration={totalDuration}
                 maxDuration={WORKOUT_DURATION}
               />

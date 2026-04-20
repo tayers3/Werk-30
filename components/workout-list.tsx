@@ -15,6 +15,7 @@ interface WorkoutListProps {
   maxDuration: number;
   onSetsChange?: (order: number, sets: number) => void;
   onRepsChange?: (order: number, reps: string) => void;
+  onDurationChange?: (order: number, duration: number) => void;
 }
 
 const REST_OPTIONS = [0, 15, 30, 45, 60];
@@ -35,6 +36,7 @@ export function WorkoutList({
   maxDuration,
   onSetsChange,
   onRepsChange,
+  onDurationChange,
 }: WorkoutListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
@@ -137,15 +139,32 @@ export function WorkoutList({
   const remainingTime = maxDuration - totalDuration;
   const progressPercent = Math.min((totalDuration / maxDuration) * 100, 100);
 
+  const handleFillTime = () => {
+    if (!onDurationChange || exercises.length === 0 || remainingTime <= 0) return;
+    const last = exercises[exercises.length - 1];
+    onDurationChange(last.order, last.duration + remainingTime);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-bold text-foreground">Your Workout</h2>
-          <span className="text-sm font-medium text-muted-foreground">
-            {formatTotalTime(totalDuration)} / {formatTotalTime(maxDuration)}
-          </span>
+          <div className="flex items-center gap-2">
+            {onDurationChange && exercises.length > 0 && remainingTime > 0 && (
+              <button
+                onClick={handleFillTime}
+                className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title={`Add ${formatDuration(remainingTime)} to last exercise`}
+              >
+                Fill Time
+              </button>
+            )}
+            <span className="text-sm font-medium text-muted-foreground">
+              {formatTotalTime(totalDuration)} / {formatTotalTime(maxDuration)}
+            </span>
+          </div>
         </div>
         <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
           <div

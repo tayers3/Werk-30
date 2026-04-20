@@ -79,10 +79,10 @@ const FOCUS_OPTIONS: FocusOption[] = [
 
 export default function WorkoutIntakePage() {
   const router = useRouter();
-  const setWorkoutIntake = useWorkoutStore((s) => s.setWorkoutIntake);
+  const { setWorkoutIntake, workoutIntake } = useWorkoutStore();
 
-  const [selectedGoal, setSelectedGoal] = useState<IntakeGoal | null>(null);
-  const [selectedFocus, setSelectedFocus] = useState<IntakeFocus | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState<IntakeGoal | null>(workoutIntake?.goal ?? null);
+  const [selectedFocus, setSelectedFocus] = useState<IntakeFocus | null>(workoutIntake?.focus ?? null);
 
   const canContinue = selectedGoal !== null && selectedFocus !== null;
 
@@ -104,8 +104,8 @@ export default function WorkoutIntakePage() {
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Let's Personalise Your Workout</h1>
-            <p className="text-xs text-muted-foreground">Answer two quick questions</p>
+            <h1 className="text-lg font-bold text-foreground">{workoutIntake ? "Update Your Goals" : "Let's Personalise Your Workout"}</h1>
+            <p className="text-xs text-muted-foreground">{workoutIntake ? "Change your training goal and focus" : "Answer two quick questions"}</p>
           </div>
         </div>
       </header>
