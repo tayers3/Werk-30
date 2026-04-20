@@ -227,10 +227,10 @@ export function WorkoutBuilder() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push('/calendar')}
+                onClick={() => router.push('/weekly-split')}
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
-                Calendar
+                Weekly Split
               </Button>
               <Button
                 variant="outline"

@@ -2,21 +2,27 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react";
-import { WorkoutExercise, calculateTotalDuration, useWorkoutStore } from "@/lib/workout-store";
+import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId } from "@/lib/workout-store";
 import { WorkoutList } from "@/components/workout-list";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer, StopCircle, LogOut } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer, StopCircle, LogOut, BookmarkPlus } from "lucide-react";
 import { formatTotalTime } from "@/lib/exercises";
 import { cn } from "@/lib/utils";
 
 function WorkoutPageContent() {
   const router = useRouter();
-  const { pendingWorkout, clearPendingWorkout } = useWorkoutStore();
+  const { pendingWorkout, clearPendingWorkout, saveWorkout } = useWorkoutStore();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [workoutLabel, setWorkoutLabel] = useState("");
+  const [saved, setSaved] = useState(false);
 
   // Timer state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -109,6 +115,22 @@ function WorkoutPageContent() {
     setPhase("exercise");
     setCurrentSet(1);
     setTimeRemaining(currentExercise?.duration || 0);
+  };
+
+  const handleSaveWorkout = () => {
+    const totalDuration = calculateTotalDuration(workoutExercises, accessories);
+    const plan: WorkoutPlan = {
+      id: generateWorkoutId(),
+      name: workoutLabel || `Workout ${new Date().toLocaleDateString()}`,
+      exercises: workoutExercises,
+      accessories,
+      totalDuration,
+      createdAt: new Date(),
+    };
+    saveWorkout(plan, workoutLabel || undefined);
+    setShowSaveDialog(false);
+    setWorkoutLabel("");
+    setSaved(true);
   };
 
   const goToNext = useCallback(() => {
@@ -514,7 +536,7 @@ function WorkoutPageContent() {
               )}
             </div>
 
-            {/* Row 2: Previous / Next — only shown after starting */}
+            {/* Row 2: Previous / Next + Save — only shown after starting */}
             {startTime && (
               <div className="flex items-center gap-2">
                 <Button
@@ -541,11 +563,48 @@ function WorkoutPageContent() {
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
+                <Button
+                  onClick={() => setShowSaveDialog(true)}
+                  variant="outline"
+                  size="default"
+                  disabled={saved}
+                  className="px-4"
+                >
+                  <BookmarkPlus className="h-4 w-4 mr-1" />
+                  {saved ? "Saved" : "Save"}
+                </Button>
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Save Workout Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Workout</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="workout-label">Workout Name</Label>
+              <Input
+                id="workout-label"
+                placeholder={`Workout ${new Date().toLocaleDateString()}`}
+                value={workoutLabel}
+                onChange={(e) => setWorkoutLabel(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>Cancel</Button>
+              <Button onClick={handleSaveWorkout}>
+                <BookmarkPlus className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

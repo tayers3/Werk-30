@@ -27,12 +27,36 @@ export interface ScheduledWorkout {
   completed: boolean;
 }
 
+export type DayOfWeek = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+
+export interface WeeklySplitDay {
+  day: DayOfWeek;
+  type: "rest" | "workout";
+  workoutId?: string; // references a SavedWorkout id
+  label?: string;    // custom label e.g. "Push Day", "Leg Day"
+}
+
+export type WeeklySplit = Record<DayOfWeek, WeeklySplitDay>;
+
+const DEFAULT_SPLIT: WeeklySplit = {
+  Mon: { day: "Mon", type: "workout" },
+  Tue: { day: "Tue", type: "rest" },
+  Wed: { day: "Wed", type: "workout" },
+  Thu: { day: "Thu", type: "rest" },
+  Fri: { day: "Fri", type: "workout" },
+  Sat: { day: "Sat", type: "workout" },
+  Sun: { day: "Sun", type: "rest" },
+};
+
 interface WorkoutStore {
   scheduledWorkouts: ScheduledWorkout[];
   savedWorkouts: SavedWorkout[];
+  weeklySplit: WeeklySplit;
   pendingWorkout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] } | null;
   setPendingWorkout: (workout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] }) => void;
   clearPendingWorkout: () => void;
+  updateWeeklySplitDay: (day: DayOfWeek, update: Partial<WeeklySplitDay>) => void;
+  resetWeeklySplit: () => void;
   addScheduledWorkout: (date: string, workoutPlan: WorkoutPlan) => void;
   removeScheduledWorkout: (id: string) => void;
   markCompleted: (id: string) => void;
@@ -47,9 +71,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
     (set, get) => ({
       scheduledWorkouts: [],
       savedWorkouts: [],
+      weeklySplit: DEFAULT_SPLIT,
       pendingWorkout: null,
       setPendingWorkout: (workout) => set({ pendingWorkout: workout }),
       clearPendingWorkout: () => set({ pendingWorkout: null }),
+      updateWeeklySplitDay: (day, update) =>
+        set((state) => ({
+          weeklySplit: {
+            ...state.weeklySplit,
+            [day]: { ...state.weeklySplit[day], ...update },
+          },
+        })),
+      resetWeeklySplit: () => set({ weeklySplit: DEFAULT_SPLIT }),
       addScheduledWorkout: (date, workoutPlan) => {
         const newScheduled: ScheduledWorkout = {
           id: generateWorkoutId(),
