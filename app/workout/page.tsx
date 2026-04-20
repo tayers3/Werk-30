@@ -39,15 +39,13 @@ function WorkoutPageContent() {
   const currentExercise = allExercises[currentIndex];
   const nextExercise = allExercises[currentIndex + 1];
 
-  // Initialize timer when exercises are loaded
+  // Initialize timer duration when exercises are loaded (do NOT auto-start)
   useEffect(() => {
-    if (workoutExercises.length > 0 && !startTime) {
+    if (workoutExercises.length > 0 && timeRemaining === 0) {
       setTimeRemaining(workoutExercises[0].duration);
-      setStartTime(new Date());
-      setIsPlaying(true);
       setCurrentSet(1);
     }
-  }, [workoutExercises, startTime]);
+  }, [workoutExercises]);
 
   const playBeep = useCallback((frequency: number = 800, duration: number = 150) => {
     if (isMuted) return;
@@ -341,8 +339,8 @@ function WorkoutPageContent() {
       {/* Main content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
-          {/* Current Exercise Display */}
-          {startTime && !isComplete && (
+          {/* Current Exercise Display — always visible once exercises loaded */}
+          {!isComplete && (
             <div className="rounded-2xl border border-primary/20 bg-card p-6 shadow-sm">
               <div className="text-center mb-4">
                 <div className={cn(
