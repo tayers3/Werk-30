@@ -103,14 +103,14 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
   }, [isMuted]);
 
   const goToNext = useCallback(() => {
-    if (phase === "exercise" && currentExercise.restAfter > 0 && currentIndex < exercises.length - 1) {
+    if (phase === "exercise" && currentExercise.restAfter > 0 && currentIndex < allExercises.length - 1) {
       setPhase("rest");
       setTimeRemaining(currentExercise.restAfter);
       playBeep(600);
-    } else if (currentIndex < exercises.length - 1) {
+    } else if (currentIndex < allExercises.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setPhase("exercise");
-      setTimeRemaining(exercises[currentIndex + 1].duration);
+      setTimeRemaining(allExercises[currentIndex + 1].duration);
       playBeep(800);
     } else {
       setPhase("complete");
@@ -120,7 +120,7 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
       setTimeout(() => playBeep(1400), 400);
       onComplete();
     }
-  }, [phase, currentExercise, currentIndex, exercises, playBeep, onComplete]);
+  }, [phase, currentExercise, currentIndex, allExercises, playBeep, onComplete]);
 
   const goToPrevious = useCallback(() => {
     if (phase === "rest") {
@@ -129,7 +129,7 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
     } else if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
       setPhase("exercise");
-      setTimeRemaining(exercises[currentIndex - 1].duration);
+      setTimeRemaining(allExercises[currentIndex - 1].duration);
     }
   }, [phase, currentExercise, currentIndex, allExercises]);
 
@@ -311,8 +311,8 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
                     (1 -
                       timeRemaining /
                         (phase === "rest"
-                          ? currentExercise.restAfter
-                          : currentExercise.duration))
+                          ? (currentExercise.restAfter || 1)
+                          : (currentExercise.duration || 1)))
                   }%`}
                   style={{ transition: "stroke-dashoffset 0.3s ease" }}
                 />
