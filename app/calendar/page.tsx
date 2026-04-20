@@ -22,7 +22,7 @@ export default function CalendarPage() {
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [draggedWorkout, setDraggedWorkout] = useState<ScheduledWorkout | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
-  const { scheduledWorkouts, removeScheduledWorkout, addScheduledWorkout } = useWorkoutStore();
+  const { scheduledWorkouts, removeScheduledWorkout, addScheduledWorkout, setPendingWorkout } = useWorkoutStore();
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -36,12 +36,11 @@ export default function CalendarPage() {
   const handleToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
 
   const handleStartWorkout = (workout: ScheduledWorkout) => {
-    const workoutData = {
+    setPendingWorkout({
       exercises: workout.workoutPlan.exercises,
       accessories: workout.workoutPlan.accessories ?? [],
-    };
-    const encoded = encodeURIComponent(JSON.stringify(workoutData));
-    router.push(`/workout?workout=${encoded}`);
+    });
+    router.push("/workout");
   };
 
   const handleDragStart = (e: React.DragEvent, workout: ScheduledWorkout) => {

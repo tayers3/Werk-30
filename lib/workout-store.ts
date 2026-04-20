@@ -43,7 +43,8 @@ export interface SavedWeeklySplit {
   id: string;
   name: string;
   split: WeeklySplit;
-  savedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const DEFAULT_SPLIT: WeeklySplit = {
@@ -90,12 +91,17 @@ interface WorkoutStore {
   pendingWorkout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] } | null;
   strengthMaxes: StrengthMaxes;
   workoutIntake: WorkoutIntake | null;
-  savedWeeklySplit: SavedWeeklySplit | null;
+  savedSplits: SavedWeeklySplit[];
   setPendingWorkout: (workout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] }) => void;
   clearPendingWorkout: () => void;
   updateStrengthMax: (lift: keyof StrengthMaxes, value: number | undefined) => void;
   setWorkoutIntake: (intake: WorkoutIntake) => void;
   clearWorkoutIntake: () => void;
+  addSplit: (name: string) => void;
+  updateSplit: (id: string, updates: { name?: string; split?: WeeklySplit }) => void;
+  deleteSplit: (id: string) => void;
+  loadSplit: (id: string) => void;
+  // legacy compat
   saveWeeklySplit: (name: string) => void;
   clearSavedWeeklySplit: () => void;
   updateWeeklySplitDay: (day: DayOfWeek, update: Partial<WeeklySplitDay>) => void;
@@ -119,23 +125,58 @@ export const useWorkoutStore = create<WorkoutStore>()(
       pendingWorkout: null,
       strengthMaxes: {},
       workoutIntake: null,
-      savedWeeklySplit: null,
+      savedSplits: [],
       setPendingWorkout: (workout) => set({ pendingWorkout: workout }),
       clearPendingWorkout: () => set({ pendingWorkout: null }),
       updateStrengthMax: (lift, value) =>
         set((state) => ({ strengthMaxes: { ...state.strengthMaxes, [lift]: value } })),
       setWorkoutIntake: (intake) => set({ workoutIntake: intake }),
       clearWorkoutIntake: () => set({ workoutIntake: null }),
+      addSplit: (name) =>
+        set((state) => ({
+          savedSplits: [
+            ...state.savedSplits,
+            {
+              id: `split-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+              name,
+              split: state.weeklySplit,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
+        })),
+      updateSplit: (id, updates) =>
+        set((state) => ({
+          savedSplits: state.savedSplits.map((s) =>
+            s.id === id
+              ? { ...s, ...updates, updatedAt: new Date() }
+              : s
+          ),
+        })),
+      deleteSplit: (id) =>
+        set((state) => ({
+          savedSplits: state.savedSplits.filter((s) => s.id !== id),
+        })),
+      loadSplit: (id) =>
+        set((state) => {
+          const found = state.savedSplits.find((s) => s.id === id);
+          return found ? { weeklySplit: found.split } : {};
+        }),
+      // legacy compat: saveWeeklySplit saves as a named split entry
       saveWeeklySplit: (name) =>
         set((state) => ({
-          savedWeeklySplit: {
-            id: `split-${Date.now()}`,
-            name,
-            split: state.weeklySplit,
-            savedAt: new Date(),
-          },
+          savedSplits: [
+            ...state.savedSplits,
+            {
+              id: `split-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+              name,
+              split: state.weeklySplit,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ],
         })),
-      clearSavedWeeklySplit: () => set({ savedWeeklySplit: null }),
+      clearSavedWeeklySplit: () => set({}),
       updateWeeklySplitDay: (day, update) =>
         set((state) => ({
           weeklySplit: {

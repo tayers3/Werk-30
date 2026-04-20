@@ -37,13 +37,14 @@ const DAY_FULL: Record<DayOfWeek, string> = {
 
 export default function WeeklySplitPage() {
   const router = useRouter();
-  const { weeklySplit, savedWorkouts, updateWeeklySplitDay, resetWeeklySplit, setPendingWorkout, saveWeeklySplit, clearSavedWeeklySplit, savedWeeklySplit } =
+  const { weeklySplit, savedWorkouts, updateWeeklySplitDay, resetWeeklySplit, setPendingWorkout, addSplit, savedSplits } =
     useWorkoutStore();
 
   const [editingDay, setEditingDay] = useState<DayOfWeek | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [showSaveSplitDialog, setShowSaveSplitDialog] = useState(false);
   const [splitNameDraft, setSplitNameDraft] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
 
   const today = new Date()
     .toLocaleDateString("en-US", { weekday: "short" })
@@ -109,10 +110,21 @@ export default function WeeklySplitPage() {
               </div>
             </div>
 
+            {/* Saved Splits */}
+            <Button variant="outline" size="sm" onClick={() => router.push("/saved-splits")}>
+              <Bookmark className="h-4 w-4 mr-2" />
+              Saved Splits
+              {savedSplits.length > 0 && (
+                <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                  {savedSplits.length}
+                </span>
+              )}
+            </Button>
+
             {/* Save Split */}
-            <Button variant="outline" size="sm" onClick={() => { setSplitNameDraft(savedWeeklySplit?.name ?? ""); setShowSaveSplitDialog(true); }}>
+            <Button variant="outline" size="sm" onClick={() => { setSplitNameDraft(""); setShowSaveSplitDialog(true); }}>
               <Save className="h-4 w-4 mr-2" />
-              {savedWeeklySplit ? "Update Split" : "Save Split"}
+              Save Split
             </Button>
 
             {/* Reset with confirmation */}
@@ -136,7 +148,6 @@ export default function WeeklySplitPage() {
                   <AlertDialogAction
                     onClick={() => {
                       resetWeeklySplit();
-                      clearSavedWeeklySplit();
                       setEditingDay(null);
                       setLabelDraft("");
                     }}
@@ -154,7 +165,7 @@ export default function WeeklySplitPage() {
       <Dialog open={showSaveSplitDialog} onOpenChange={setShowSaveSplitDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{savedWeeklySplit ? "Update Saved Split" : "Save Weekly Split"}</DialogTitle>
+            <DialogTitle>Save Weekly Split</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -166,23 +177,21 @@ export default function WeeklySplitPage() {
                 onChange={(e) => setSplitNameDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveWeeklySplit(splitNameDraft.trim() || "My Weekly Split");
+                    addSplit(splitNameDraft.trim() || "My Weekly Split");
+                    setJustSaved(true);
                     setShowSaveSplitDialog(false);
                   }
                 }}
               />
             </div>
-            {savedWeeklySplit && (
-              <p className="text-xs text-muted-foreground">
-                Last saved: <strong>{savedWeeklySplit.name}</strong> on{" "}
-                {new Date(savedWeeklySplit.savedAt).toLocaleDateString()}
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              This saves a new copy. You currently have {savedSplits.length} saved split{savedSplits.length !== 1 ? "s" : ""}.
+            </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowSaveSplitDialog(false)}>Cancel</Button>
-              <Button onClick={() => { saveWeeklySplit(splitNameDraft.trim() || "My Weekly Split"); setShowSaveSplitDialog(false); }}>
+              <Button onClick={() => { addSplit(splitNameDraft.trim() || "My Weekly Split"); setJustSaved(true); setShowSaveSplitDialog(false); }}>
                 <Bookmark className="h-4 w-4 mr-2" />
-                {savedWeeklySplit ? "Update" : "Save"}
+                Save
               </Button>
             </div>
           </div>
@@ -191,15 +200,12 @@ export default function WeeklySplitPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
         {/* Saved split banner */}
-        {savedWeeklySplit && (
+        {justSaved && (
           <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
             <Bookmark className="h-4 w-4 text-primary shrink-0" />
-            <span className="flex-1 text-foreground">
-              Saved as <strong>{savedWeeklySplit.name}</strong>
-              <span className="text-muted-foreground ml-1">· {new Date(savedWeeklySplit.savedAt).toLocaleDateString()}</span>
-            </span>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setSplitNameDraft(savedWeeklySplit.name); setShowSaveSplitDialog(true); }}>
-              Update
+            <span className="flex-1 text-foreground">Split saved! You now have <strong>{savedSplits.length}</strong> saved split{savedSplits.length !== 1 ? "s" : ""}.</span>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => router.push("/saved-splits")}>
+              View All
             </Button>
           </div>
         )}

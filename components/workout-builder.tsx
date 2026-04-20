@@ -359,6 +359,14 @@ export function WorkoutBuilder() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => router.push('/saved-splits')}
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Saved Splits
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => router.push('/saved-workouts')}
               >
                 <Target className="h-4 w-4 mr-2" />

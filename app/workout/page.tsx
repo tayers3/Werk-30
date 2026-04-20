@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Play, Pause, Square, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer, StopCircle, LogOut, BookmarkPlus } from "lucide-react";
+import { ArrowLeft, Play, Pause, ChevronLeft, ChevronRight, Clock, Volume2, VolumeX, Timer, StopCircle, LogOut, BookmarkPlus } from "lucide-react";
 import { formatTotalTime } from "@/lib/exercises";
 import { cn } from "@/lib/utils";
 
@@ -18,23 +18,22 @@ function WorkoutPageContent() {
   const { pendingWorkout, clearPendingWorkout, saveWorkout } = useWorkoutStore();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
-  const [isComplete, setIsComplete] = useState(false);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [workoutLabel, setWorkoutLabel] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // Timer state
+  // ── Timer state ──────────────────────────────────────────────────────────
+  type TimerPhase = "exercise" | "rest" | "set-rest" | "complete";
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [phase, setPhase] = useState<"exercise" | "rest" | "set-rest" | "complete">("exercise");
+  const [phase, setPhase] = useState<TimerPhase>("exercise");
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [totalElapsed, setTotalElapsed] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [stopTime, setStopTime] = useState<Date | null>(null);
-  const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
   const [currentSet, setCurrentSet] = useState(1);
+  const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -44,81 +43,163 @@ function WorkoutPageContent() {
   );
   const currentExercise = allExercises[currentIndex];
   const nextExercise = allExercises[currentIndex + 1];
+  const isCurrentAccessory = currentIndex >= workoutExercises.length;
+  const isComplete = phase === "complete";
 
-  // Initialize timer duration when exercises are loaded (do NOT auto-start)
+  // Initialize time when exercises first load
   useEffect(() => {
     if (workoutExercises.length > 0 && timeRemaining === 0) {
       setTimeRemaining(workoutExercises[0].duration);
-      setCurrentSet(1);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutExercises]);
 
-  const playBeep = useCallback((frequency: number = 800, duration: number = 150) => {
+  // ── Audio ────────────────────────────────────────────────────────────────
+  const playBeep = useCallback((frequency = 800, duration = 150) => {
     if (isMuted) return;
-    
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       }
-      
       const ctx = audioContextRef.current;
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      oscillator.frequency.value = frequency;
-      oscillator.type = "sine";
-      
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration / 1000);
-      
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + duration / 1000);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = frequency;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration / 1000);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration / 1000);
     } catch {
       // Audio not supported
     }
   }, [isMuted]);
 
+  // ── Atomic transition helper ─────────────────────────────────────────────
+  // All phase changes go through here so state is always updated consistently.
+  type Transition =
+    | { phase: "exercise"; index: number; set: number; duration: number }
+    | { phase: "set-rest" | "rest"; rest: number }
+    | { phase: "complete" };
+
+  const applyTransition = useCallback((t: Transition) => {
+    if (t.phase === "exercise") {
+      setCurrentIndex(t.index);
+      setCurrentSet(t.set);
+      setPhase("exercise");
+      setTimeRemaining(t.duration);
+    } else if (t.phase === "set-rest" || t.phase === "rest") {
+      setPhase(t.phase);
+      setTimeRemaining(t.rest);
+    } else {
+      setPhase("complete");
+      setIsPlaying(false);
+    }
+  }, []);
+
+  // ── Navigation ───────────────────────────────────────────────────────────
+  const goToNext = useCallback(() => {
+    if (!currentExercise) return;
+    const rest = currentExercise.restAfter;
+
+    if (phase === "set-rest") {
+      // Finished rest between sets — start the next set
+      applyTransition({ phase: "exercise", index: currentIndex, set: currentSet, duration: currentExercise.duration });
+      playBeep(800);
+      return;
+    }
+
+    if (phase === "rest") {
+      // Finished rest after exercise — start next exercise
+      const next = allExercises[currentIndex + 1];
+      applyTransition({ phase: "exercise", index: currentIndex + 1, set: 1, duration: next.duration });
+      playBeep(800);
+      return;
+    }
+
+    // phase === "exercise"
+    const hasMoreSets = currentSet < currentExercise.sets;
+    const hasNextExercise = currentIndex < allExercises.length - 1;
+
+    if (hasMoreSets) {
+      if (rest > 0) {
+        setCurrentSet(currentSet + 1); // advance set counter before rest
+        applyTransition({ phase: "set-rest", rest });
+        playBeep(600);
+      } else {
+        applyTransition({ phase: "exercise", index: currentIndex, set: currentSet + 1, duration: currentExercise.duration });
+        playBeep(800);
+      }
+    } else if (hasNextExercise) {
+      if (rest > 0) {
+        applyTransition({ phase: "rest", rest });
+        playBeep(600);
+      } else {
+        const next = allExercises[currentIndex + 1];
+        applyTransition({ phase: "exercise", index: currentIndex + 1, set: 1, duration: next.duration });
+        playBeep(800);
+      }
+    } else {
+      applyTransition({ phase: "complete" });
+      playBeep(1000);
+      setTimeout(() => playBeep(1200), 200);
+      setTimeout(() => playBeep(1400), 400);
+    }
+  }, [phase, currentExercise, currentIndex, currentSet, allExercises, applyTransition, playBeep]);
+
+  const goToPrevious = useCallback(() => {
+    if (!currentExercise) return;
+
+    if (phase === "rest" || phase === "set-rest") {
+      // Step back to last set of the current exercise
+      applyTransition({ phase: "exercise", index: currentIndex, set: currentExercise.sets, duration: currentExercise.duration });
+    } else if (phase === "exercise" && currentSet > 1) {
+      applyTransition({ phase: "exercise", index: currentIndex, set: currentSet - 1, duration: currentExercise.duration });
+    } else if (currentIndex > 0) {
+      const prev = allExercises[currentIndex - 1];
+      applyTransition({ phase: "exercise", index: currentIndex - 1, set: prev.sets, duration: prev.duration });
+    }
+  }, [phase, currentExercise, currentIndex, currentSet, allExercises, applyTransition]);
+
+  // ── Countdown interval ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isPlaying || isComplete) return;
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) { goToNext(); return 0; }
+        if (prev <= 4) playBeep(600, 100);
+        return prev - 1;
+      });
+      setTotalElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPlaying, isComplete, goToNext, playBeep]);
+
+  // ── Workout-level controls ───────────────────────────────────────────────
   const handleStartWorkout = () => {
-    // Workout auto-starts now, but this function can be used to restart if needed
+    const first = allExercises[0];
+    if (!first) return;
     setStartTime(new Date());
-    setStopTime(null);
     setIsPlaying(true);
-    setTimeRemaining(currentExercise?.duration || 0);
-    setCurrentIndex(0);
-    setPhase("exercise");
-    setIsComplete(false);
+    setTotalElapsed(0);
     setCompletedExercises(new Set());
-    setCurrentSet(1);
-  };
-
-  const handlePauseWorkout = () => {
-    setIsPlaying(false);
-  };
-
-  const handleResumeWorkout = () => {
-    setIsPlaying(true);
+    applyTransition({ phase: "exercise", index: 0, set: 1, duration: first.duration });
   };
 
   const handleEndWorkout = () => {
-    setStopTime(new Date());
-    setIsPlaying(false);
-    setPhase("complete");
-    setIsComplete(true);
-    // Scroll to top so the completion message is immediately visible
+    applyTransition({ phase: "complete" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleStopTimer = () => {
-    // Stop and reset just the current exercise timer
     setIsPlaying(false);
-    setPhase("exercise");
-    setCurrentSet(1);
-    setTimeRemaining(currentExercise?.duration || 0);
+    applyTransition({ phase: "exercise", index: currentIndex, set: 1, duration: currentExercise?.duration || 0 });
   };
 
+  // ── Save ─────────────────────────────────────────────────────────────────
   const handleSaveWorkout = () => {
     const totalDuration = calculateTotalDuration(workoutExercises, accessories);
     const plan: WorkoutPlan = {
@@ -134,114 +215,6 @@ function WorkoutPageContent() {
     setWorkoutLabel("");
     setSaved(true);
   };
-
-  const goToNext = useCallback(() => {
-    if (!currentExercise) return;
-
-    if (phase === "exercise") {
-      if (currentSet < currentExercise.sets) {
-        // More sets remaining for this exercise
-        const nextSet = currentSet + 1;
-        setCurrentSet(nextSet);
-        if (currentExercise.restAfter > 0) {
-          setPhase("set-rest");
-          setTimeRemaining(currentExercise.restAfter);
-          playBeep(600);
-        } else {
-          // No rest — stay in exercise phase for the next set
-          setTimeRemaining(currentExercise.duration);
-          playBeep(800);
-        }
-      } else if (currentIndex < allExercises.length - 1) {
-        // All sets done; move to rest before next exercise
-        if (currentExercise.restAfter > 0) {
-          setPhase("rest");
-          setTimeRemaining(currentExercise.restAfter);
-          playBeep(600);
-        } else {
-          // No rest — jump straight to next exercise
-          const nextEx = allExercises[currentIndex + 1];
-          setCurrentIndex(currentIndex + 1);
-          setPhase("exercise");
-          setTimeRemaining(nextEx.duration);
-          setCurrentSet(1);
-          playBeep(800);
-        }
-      } else {
-        // All exercises complete
-        setPhase("complete");
-        setIsPlaying(false);
-        playBeep(1000);
-        setTimeout(() => playBeep(1200), 200);
-        setTimeout(() => playBeep(1400), 400);
-        setIsComplete(true);
-      }
-    } else if (phase === "set-rest") {
-      // Rest between sets done — resume same exercise, next set
-      setPhase("exercise");
-      setTimeRemaining(currentExercise.duration);
-      playBeep(800);
-    } else if (phase === "rest") {
-      // Rest after exercise done — start next exercise
-      const nextEx = allExercises[currentIndex + 1];
-      setCurrentIndex(currentIndex + 1);
-      setPhase("exercise");
-      setTimeRemaining(nextEx.duration);
-      setCurrentSet(1);
-      playBeep(800);
-    }
-  }, [phase, currentExercise, currentIndex, allExercises, currentSet, playBeep]);
-
-  const goToPrevious = useCallback(() => {
-    if (!currentExercise) return;
-
-    if (phase === "rest") {
-      // Going back from rest after exercise - go to last set of current exercise
-      setPhase("exercise");
-      setTimeRemaining(currentExercise.duration);
-      setCurrentSet(currentExercise.sets);
-    } else if (phase === "set-rest") {
-      // Going back from rest between sets - go to previous set
-      setPhase("exercise");
-      setTimeRemaining(currentExercise.duration);
-      setCurrentSet(Math.max(1, currentSet - 1));
-    } else if (phase === "exercise" && currentSet > 1) {
-      // Going back within the same exercise to previous set
-      setPhase("set-rest");
-      setTimeRemaining(currentExercise.restAfter);
-      setCurrentSet(currentSet - 1);
-    } else if (currentIndex > 0) {
-      // Going back to previous exercise
-      setCurrentIndex(currentIndex - 1);
-      setPhase("exercise");
-      const prevEx = allExercises[currentIndex - 1];
-      if (prevEx) {
-        setTimeRemaining(prevEx.duration);
-        setCurrentSet(prevEx.sets); // Start from last set of previous exercise
-      }
-    }
-  }, [phase, currentExercise, currentIndex, allExercises, currentSet]);
-
-  useEffect(() => {
-    if (!isPlaying || phase === "complete") return;
-
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          goToNext();
-          return 0;
-        }
-        // Countdown beeps at 3, 2, 1
-        if (prev <= 4 && prev > 1) {
-          playBeep(600, 100);
-        }
-        return prev - 1;
-      });
-      setTotalElapsed((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, phase, goToNext, playBeep]);
 
   const handleUpdateSets = (exerciseIndex: number, newSets: number) => {
     const updatedExercises = [...workoutExercises];
@@ -373,9 +346,11 @@ function WorkoutPageContent() {
                     ? "bg-accent/20 text-accent"
                     : phase === "set-rest"
                     ? "bg-blue-500/20 text-blue-600"
+                    : isCurrentAccessory
+                    ? "bg-orange-500/20 text-orange-400"
                     : "bg-primary/20 text-primary"
                 )}>
-                  {phase === "rest" ? "REST" : phase === "set-rest" ? "SET REST" : "EXERCISE"}
+                  {phase === "rest" ? "REST" : phase === "set-rest" ? "SET REST" : isCurrentAccessory ? "ACCESSORY" : "EXERCISE"}
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">
                   {phase === "rest" ? "Rest" : currentExercise?.name || "Loading..."}
@@ -493,12 +468,55 @@ function WorkoutPageContent() {
 
           <WorkoutList
             exercises={workoutExercises}
-            onRemove={() => {}} // Read-only on this page
-            onReorder={() => {}} // Read-only on this page
-            onRestChange={() => {}} // Read-only on this page
+            onRemove={() => {}}
+            onReorder={() => {}}
+            onRestChange={() => {}}
             totalDuration={totalDuration}
             maxDuration={30 * 60}
           />
+
+          {/* Accessories overview */}
+          {accessories.length > 0 && (
+            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">
+                  ACCESSORIES
+                </span>
+                {accessories.length} accessory exercise{accessories.length !== 1 ? "s" : ""}
+              </h3>
+              <div className="space-y-2">
+                {accessories.map((acc, i) => {
+                  const globalIndex = workoutExercises.length + i;
+                  const isDone = completedExercises.has(globalIndex);
+                  const isCurrent = currentIndex === globalIndex;
+                  return (
+                    <div
+                      key={`acc-${acc.id}-${i}`}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors",
+                        isCurrent
+                          ? "border-orange-500/40 bg-orange-500/10"
+                          : isDone
+                          ? "border-border/40 bg-muted/30 opacity-60"
+                          : "border-border/60 bg-card"
+                      )}
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500/20 text-[10px] font-bold text-orange-400 shrink-0">
+                        {globalIndex + 1}
+                      </span>
+                      <span className="flex-1 font-medium text-foreground">{acc.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {acc.sets} &times; {acc.reps}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-xs text-orange-400 font-medium">Active</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -536,12 +554,12 @@ function WorkoutPageContent() {
             ) : (
               <>
                 {isPlaying ? (
-                  <Button onClick={handlePauseWorkout} variant="secondary" size="default" className="px-5">
+                  <Button onClick={() => setIsPlaying(false)} variant="secondary" size="default" className="px-5">
                     <Pause className="h-4 w-4 mr-2" />
                     Pause
                   </Button>
                 ) : (
-                  <Button onClick={handleResumeWorkout} size="default" className="px-5">
+                  <Button onClick={() => setIsPlaying(true)} size="default" className="px-5">
                     <Play className="h-4 w-4 mr-2" />
                     Resume
                   </Button>
