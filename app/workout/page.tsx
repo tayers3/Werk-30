@@ -24,7 +24,8 @@ function WorkoutPageContent() {
   const [saved, setSaved] = useState(false);
 
   // ── Timer state ──────────────────────────────────────────────────────────
-  type TimerPhase = "exercise" | "rest" | "set-rest" | "complete";
+  // duration = TOTAL time for all sets of an exercise (not per-set)
+  type TimerPhase = "exercise" | "rest" | "complete";
   const [currentIndex, setCurrentIndex] = useState(0);
   const [phase, setPhase] = useState<TimerPhase>("exercise");
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -32,7 +33,6 @@ function WorkoutPageContent() {
   const [isMuted, setIsMuted] = useState(false);
   const [totalElapsed, setTotalElapsed] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [currentSet, setCurrentSet] = useState(1);
   const [completedExercises, setCompletedExercises] = useState<Set<number>>(new Set());
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -79,20 +79,18 @@ function WorkoutPageContent() {
   }, [isMuted]);
 
   // ── Atomic transition helper ─────────────────────────────────────────────
-  // All phase changes go through here so state is always updated consistently.
   type Transition =
-    | { phase: "exercise"; index: number; set: number; duration: number }
-    | { phase: "set-rest" | "rest"; rest: number }
+    | { phase: "exercise"; index: number; duration: number }
+    | { phase: "rest"; rest: number }
     | { phase: "complete" };
 
   const applyTransition = useCallback((t: Transition) => {
     if (t.phase === "exercise") {
       setCurrentIndex(t.index);
-      setCurrentSet(t.set);
       setPhase("exercise");
       setTimeRemaining(t.duration);
-    } else if (t.phase === "set-rest" || t.phase === "rest") {
-      setPhase(t.phase);
+    } else if (t.phase === "rest") {
+      setPhase("rest");
       setTimeRemaining(t.rest);
     } else {
       setPhase("complete");
@@ -105,64 +103,47 @@ function WorkoutPageContent() {
     if (!currentExercise) return;
     const rest = currentExercise.restAfter;
 
-    if (phase === "set-rest") {
-      // Finished rest between sets — start the next set
-      applyTransition({ phase: "exercise", index: currentIndex, set: currentSet, duration: currentExercise.duration });
-      playBeep(800);
-      return;
-    }
-
     if (phase === "rest") {
-      // Finished rest after exercise — start next exercise
+      // Rest done — start next exercise
       const next = allExercises[currentIndex + 1];
-      applyTransition({ phase: "exercise", index: currentIndex + 1, set: 1, duration: next.duration });
+      applyTransition({ phase: "exercise", index: currentIndex + 1, duration: next.duration });
       playBeep(800);
       return;
     }
 
     // phase === "exercise"
-    const hasMoreSets = currentSet < currentExercise.sets;
     const hasNextExercise = currentIndex < allExercises.length - 1;
-
-    if (hasMoreSets) {
+    if (hasNextExercise) {
       if (rest > 0) {
-        setCurrentSet(currentSet + 1); // advance set counter before rest
-        applyTransition({ phase: "set-rest", rest });
-        playBeep(600);
-      } else {
-        applyTransition({ phase: "exercise", index: currentIndex, set: currentSet + 1, duration: currentExercise.duration });
-        playBeep(800);
-      }
-    } else if (hasNextExercise) {
-      if (rest > 0) {
+        setCompletedExercises((prev) => new Set([...prev, currentIndex]));
         applyTransition({ phase: "rest", rest });
         playBeep(600);
       } else {
+        setCompletedExercises((prev) => new Set([...prev, currentIndex]));
         const next = allExercises[currentIndex + 1];
-        applyTransition({ phase: "exercise", index: currentIndex + 1, set: 1, duration: next.duration });
+        applyTransition({ phase: "exercise", index: currentIndex + 1, duration: next.duration });
         playBeep(800);
       }
     } else {
+      setCompletedExercises((prev) => new Set([...prev, currentIndex]));
       applyTransition({ phase: "complete" });
       playBeep(1000);
       setTimeout(() => playBeep(1200), 200);
       setTimeout(() => playBeep(1400), 400);
     }
-  }, [phase, currentExercise, currentIndex, currentSet, allExercises, applyTransition, playBeep]);
+  }, [phase, currentExercise, currentIndex, allExercises, applyTransition, playBeep]);
 
   const goToPrevious = useCallback(() => {
     if (!currentExercise) return;
 
-    if (phase === "rest" || phase === "set-rest") {
-      // Step back to last set of the current exercise
-      applyTransition({ phase: "exercise", index: currentIndex, set: currentExercise.sets, duration: currentExercise.duration });
-    } else if (phase === "exercise" && currentSet > 1) {
-      applyTransition({ phase: "exercise", index: currentIndex, set: currentSet - 1, duration: currentExercise.duration });
+    if (phase === "rest") {
+      // Step back to restart current exercise
+      applyTransition({ phase: "exercise", index: currentIndex, duration: currentExercise.duration });
     } else if (currentIndex > 0) {
       const prev = allExercises[currentIndex - 1];
-      applyTransition({ phase: "exercise", index: currentIndex - 1, set: prev.sets, duration: prev.duration });
+      applyTransition({ phase: "exercise", index: currentIndex - 1, duration: prev.duration });
     }
-  }, [phase, currentExercise, currentIndex, currentSet, allExercises, applyTransition]);
+  }, [phase, currentExercise, currentIndex, allExercises, applyTransition]);
 
   // ── Countdown interval ───────────────────────────────────────────────────
   useEffect(() => {
@@ -186,7 +167,7 @@ function WorkoutPageContent() {
     setIsPlaying(true);
     setTotalElapsed(0);
     setCompletedExercises(new Set());
-    applyTransition({ phase: "exercise", index: 0, set: 1, duration: first.duration });
+    applyTransition({ phase: "exercise", index: 0, duration: first.duration });
   };
 
   const handleEndWorkout = () => {
@@ -196,7 +177,7 @@ function WorkoutPageContent() {
 
   const handleStopTimer = () => {
     setIsPlaying(false);
-    applyTransition({ phase: "exercise", index: currentIndex, set: 1, duration: currentExercise?.duration || 0 });
+    applyTransition({ phase: "exercise", index: currentIndex, duration: currentExercise?.duration || 0 });
   };
 
   // ── Save ─────────────────────────────────────────────────────────────────
@@ -325,10 +306,28 @@ function WorkoutPageContent() {
         </div>
       </header>
 
+      {/* Overall progress bar */}
+      {startTime && !isComplete && (() => {
+        const totalWorkoutTime = allExercises.reduce(
+          (sum, ex, i) => sum + ex.duration + (i < allExercises.length - 1 ? ex.restAfter : 0),
+          0
+        );
+        const pct = Math.min(100, (totalElapsed / (totalWorkoutTime || 1)) * 100);
+        return (
+          <div className="h-1.5 w-full bg-secondary">
+            <div
+              className="h-full bg-primary transition-all duration-1000 ease-linear"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        );
+      })()}
+
       {showWelcomeMessage && !startTime && (
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-center text-primary-foreground shadow-sm">
-            Congratulations you made the first step!! It's time to put the work in!!
+          <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-center shadow-sm">
+            <p className="font-semibold text-primary">You’ve got this! 💪</p>
+            <p className="text-sm text-muted-foreground mt-1">Build and complete a structured 30-minute workout based on your preferences.</p>
           </div>
         </div>
       )}
@@ -336,94 +335,84 @@ function WorkoutPageContent() {
       {/* Main content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
-          {/* Current Exercise Display — always visible once exercises loaded */}
+          {/* Current Exercise Display */}
           {!isComplete && (
-            <div className="rounded-2xl border border-primary/20 bg-card p-6 shadow-sm">
-              <div className="text-center mb-4">
-                <div className={cn(
-                  "inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium mb-4",
-                  phase === "rest"
-                    ? "bg-accent/20 text-accent"
-                    : phase === "set-rest"
-                    ? "bg-blue-500/20 text-blue-600"
-                    : isCurrentAccessory
-                    ? "bg-orange-500/20 text-orange-400"
-                    : "bg-primary/20 text-primary"
-                )}>
-                  {phase === "rest" ? "REST" : phase === "set-rest" ? "SET REST" : isCurrentAccessory ? "ACCESSORY" : "EXERCISE"}
-                </div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  {phase === "rest" ? "Rest" : currentExercise?.name || "Loading..."}
-                </h3>
-                {phase === "exercise" && currentExercise && (
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs font-medium">Sets:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={currentExercise.sets}
-                          onChange={(e) => handleUpdateSets(currentIndex, parseInt(e.target.value) || 1)}
-                          className="w-12 px-2 py-1 text-xs border border-input rounded bg-background"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs font-medium">Reps:</label>
-                        <input
-                          type="text"
-                          value={currentExercise.reps}
-                          onChange={(e) => handleUpdateReps(currentIndex, e.target.value)}
-                          className="w-16 px-2 py-1 text-xs border border-input rounded bg-background"
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Set {currentSet} of {currentExercise.sets}
-                      </div>
-                    </div>
-                    <p>{currentExercise.description}</p>
+            <div
+              key={`${currentIndex}-${phase}`}
+              className={cn(
+                "rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300",
+                phase === "rest"
+                  ? "border-accent/30"
+                  : isCurrentAccessory
+                  ? "border-orange-500/30"
+                  : "border-primary/20"
+              )}
+            >
+              {/* Phase badge */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+                    {phase === "rest" ? "Rest" : "Current Exercise"}
+                  </p>
+                  <div className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold",
+                    phase === "rest"
+                      ? "bg-accent/20 text-accent"
+                      : isCurrentAccessory
+                      ? "bg-orange-500/20 text-orange-400"
+                      : "bg-primary/20 text-primary"
+                  )}>
+                    {phase === "rest" ? "⏸ REST" : isCurrentAccessory ? "◆ ACCESSORY" : "▶ EXERCISE"}
+                    <span className="opacity-60">{currentIndex + 1} / {allExercises.length}</span>
                   </div>
-                )}
-                {nextExercise && phase === "rest" && (
-                  <p className="text-muted-foreground">Up next: <span className="text-foreground font-medium">{nextExercise.name}</span></p>
+                </div>
+                {/* Up Next preview */}
+                {nextExercise && (
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Up Next</p>
+                    <p className="text-sm font-medium text-foreground">{nextExercise.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {nextExercise.sets} sets × {nextExercise.reps}
+                    </p>
+                  </div>
                 )}
               </div>
 
+              {/* Exercise name */}
+              <h3 className="text-2xl font-bold text-foreground mb-1 text-center">
+                {phase === "rest" ? "💧 Rest" : currentExercise?.name || "Loading..."}
+              </h3>
+
+              {/* Sets / reps instruction */}
+              {phase === "exercise" && currentExercise && (
+                <div className="text-center mb-4">
+                  <p className="text-lg font-semibold text-primary">
+                    {currentExercise.sets} sets × {currentExercise.reps} reps
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{currentExercise.description}</p>
+                </div>
+              )}
+              {phase === "rest" && nextExercise && (
+                <p className="text-center text-muted-foreground mb-4">
+                  Get ready for <span className="font-semibold text-foreground">{nextExercise.name}</span>
+                </p>
+              )}
+
               {/* Timer Circle */}
-              <div className="flex justify-center mb-2">
+              <div className="flex justify-center">
                 <div className="relative">
-                  <svg className="w-32 h-32 md:w-40 md:h-40 transform -rotate-90">
+                  <svg className="w-36 h-36 md:w-44 md:h-44 transform -rotate-90">
+                    <circle cx="50%" cy="50%" r="45%" fill="none" stroke="currentColor" strokeWidth="5" className="text-secondary" />
                     <circle
-                      cx="50%"
-                      cy="50%"
-                      r="45%"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      className="text-secondary"
-                    />
-                    <circle
-                      cx="50%"
-                      cy="50%"
-                      r="45%"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
+                      cx="50%" cy="50%" r="45%" fill="none" stroke="currentColor" strokeWidth="5"
                       strokeLinecap="round"
                       className={phase === "rest" ? "text-accent" : "text-primary"}
                       strokeDasharray={`${2 * Math.PI * 45}`}
                       strokeDashoffset={`${
-                        2 *
-                        Math.PI *
-                        45 *
-                        (1 -
-                          timeRemaining /
-                            (phase === "rest" || phase === "set-rest"
-                              ? currentExercise?.restAfter || 30
-                              : currentExercise?.duration || 30))
+                        2 * Math.PI * 45 *
+                        (1 - timeRemaining / (phase === "rest" ? (currentExercise?.restAfter || 30) : (currentExercise?.duration || 30)))
                       }%`}
-                      style={{ transition: "stroke-dashoffset 0.3s ease" }}
+                      style={{ transition: "stroke-dashoffset 0.8s ease" }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -583,7 +572,7 @@ function WorkoutPageContent() {
                   onClick={goToPrevious}
                   variant="outline"
                   size="default"
-                  disabled={currentIndex === 0 && phase === "exercise" && currentSet === 1}
+                  disabled={currentIndex === 0 && phase === "exercise"}
                   className="px-4"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
@@ -595,8 +584,7 @@ function WorkoutPageContent() {
                   size="default"
                   disabled={
                     currentIndex === allExercises.length - 1 &&
-                    phase === "exercise" &&
-                    currentSet === currentExercise?.sets
+                    phase === "exercise"
                   }
                   className="px-4"
                 >

@@ -499,6 +499,14 @@ export function WorkoutBuilder() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* App description */}
+        <div className="mb-6 rounded-xl border border-border bg-card/60 px-5 py-4">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">Build and complete a structured 30-minute workout</span> based on your preferences.
+            Choose your goal, pick exercises, and hit &ldquo;Craft Workout&rdquo; when you&rsquo;re ready.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Exercise library */}
           <div className="lg:col-span-2 space-y-6">
