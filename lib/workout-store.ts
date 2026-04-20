@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 export interface WorkoutExercise extends Exercise {
   order: number;
   restAfter: number; // rest time in seconds after this exercise
+  parentExerciseId?: string | null; // for accessories: the id of the main exercise they belong to
 }
 
 export interface WorkoutPlan {
@@ -38,6 +39,13 @@ export interface WeeklySplitDay {
 
 export type WeeklySplit = Record<DayOfWeek, WeeklySplitDay>;
 
+export interface SavedWeeklySplit {
+  id: string;
+  name: string;
+  split: WeeklySplit;
+  savedAt: Date;
+}
+
 const DEFAULT_SPLIT: WeeklySplit = {
   Mon: { day: "Mon", type: "workout" },
   Tue: { day: "Tue", type: "workout" },
@@ -48,13 +56,48 @@ const DEFAULT_SPLIT: WeeklySplit = {
   Sun: { day: "Sun", type: "workout" },
 };
 
+export type IntakeGoal =
+  | "lose-weight"
+  | "lose-fat"
+  | "recomp"
+  | "gain-muscle"
+  | "gain-weight"
+  | "other";
+
+export type IntakeFocus =
+  | "upper-body"
+  | "lower-body"
+  | "core"
+  | "cardio"
+  | "full-body";
+
+export interface WorkoutIntake {
+  goal: IntakeGoal;
+  focus: IntakeFocus;
+}
+
+export interface StrengthMaxes {
+  bench?: number;
+  squat?: number;
+  deadlift?: number;
+  ohp?: number;
+}
+
 interface WorkoutStore {
   scheduledWorkouts: ScheduledWorkout[];
   savedWorkouts: SavedWorkout[];
   weeklySplit: WeeklySplit;
   pendingWorkout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] } | null;
+  strengthMaxes: StrengthMaxes;
+  workoutIntake: WorkoutIntake | null;
+  savedWeeklySplit: SavedWeeklySplit | null;
   setPendingWorkout: (workout: { exercises: WorkoutExercise[]; accessories: WorkoutExercise[] }) => void;
   clearPendingWorkout: () => void;
+  updateStrengthMax: (lift: keyof StrengthMaxes, value: number | undefined) => void;
+  setWorkoutIntake: (intake: WorkoutIntake) => void;
+  clearWorkoutIntake: () => void;
+  saveWeeklySplit: (name: string) => void;
+  clearSavedWeeklySplit: () => void;
   updateWeeklySplitDay: (day: DayOfWeek, update: Partial<WeeklySplitDay>) => void;
   resetWeeklySplit: () => void;
   addScheduledWorkout: (date: string, workoutPlan: WorkoutPlan) => void;
@@ -64,6 +107,7 @@ interface WorkoutStore {
   saveWorkout: (workoutPlan: WorkoutPlan, label?: string) => void;
   removeSavedWorkout: (id: string) => void;
   updateSavedWorkoutLabel: (id: string, label: string) => void;
+  updateSavedWorkout: (id: string, updates: Partial<Omit<SavedWorkout, "id" | "createdAt">>) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -73,8 +117,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
       savedWorkouts: [],
       weeklySplit: DEFAULT_SPLIT,
       pendingWorkout: null,
+      strengthMaxes: {},
+      workoutIntake: null,
+      savedWeeklySplit: null,
       setPendingWorkout: (workout) => set({ pendingWorkout: workout }),
       clearPendingWorkout: () => set({ pendingWorkout: null }),
+      updateStrengthMax: (lift, value) =>
+        set((state) => ({ strengthMaxes: { ...state.strengthMaxes, [lift]: value } })),
+      setWorkoutIntake: (intake) => set({ workoutIntake: intake }),
+      clearWorkoutIntake: () => set({ workoutIntake: null }),
+      saveWeeklySplit: (name) =>
+        set((state) => ({
+          savedWeeklySplit: {
+            id: `split-${Date.now()}`,
+            name,
+            split: state.weeklySplit,
+            savedAt: new Date(),
+          },
+        })),
+      clearSavedWeeklySplit: () => set({ savedWeeklySplit: null }),
       updateWeeklySplitDay: (day, update) =>
         set((state) => ({
           weeklySplit: {
@@ -127,6 +188,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
         set((state) => ({
           savedWorkouts: state.savedWorkouts.map((w) =>
             w.id === id ? { ...w, label } : w
+          ),
+        }));
+      },
+      updateSavedWorkout: (id, updates) => {
+        set((state) => ({
+          savedWorkouts: state.savedWorkouts.map((w) =>
+            w.id === id ? { ...w, ...updates } : w
           ),
         }));
       },

@@ -9,6 +9,7 @@ interface ExerciseCardProps {
   onAdd: (exercise: Exercise) => void;
   isSelected?: boolean;
   disabled?: boolean;
+  prescription?: { sets: string; reps: string; weight?: number };
 }
 
 const intensityColors = {
@@ -32,6 +33,7 @@ export function ExerciseCard({
   onAdd,
   isSelected = false,
   disabled = false,
+  prescription,
 }: ExerciseCardProps) {
   return (
     <div
@@ -84,6 +86,12 @@ export function ExerciseCard({
         <span className="text-xs text-muted-foreground">
           {exercise.sets} sets • {typeof exercise.reps === 'string' ? exercise.reps : `${exercise.reps} reps`}
         </span>
+        {prescription && (
+          <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            Rx: {prescription.sets}×{prescription.reps}
+            {prescription.weight ? ` @ ${prescription.weight}lbs` : ""}
+          </span>
+        )}
         <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
           {muscleGroupLabels[exercise.muscleGroup]}
         </span>

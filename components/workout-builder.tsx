@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { exercises, Exercise, MuscleGroup, Intensity, getAccessories } from "@/lib/exercises";
-import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId } from "@/lib/workout-store";
+import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId, StrengthMaxes } from "@/lib/workout-store";
+import type { IntakeGoal, IntakeFocus } from "@/lib/workout-store";
 import { ExerciseCard } from "./exercise-card";
 import { WorkoutList } from "./workout-list";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,109 @@ import {
   Sparkles,
   X,
   Calendar as CalendarIcon,
+  Home,
+  Building2,
+  Weight,
 } from "lucide-react";
 
 const WORKOUT_DURATION = 30 * 60; // 30 minutes in seconds
+
+type WorkoutLocation = "gym" | "home";
+type WorkoutGoal = "general" | "hypertrophy" | "strength" | "hiit";
+
+// Percentage prescriptions by goal
+const GOAL_PRESCRIPTIONS: Record<WorkoutGoal, { pct?: number; sets: string; reps: string; label: string; color: string }> = {
+  general:     { sets: "3",   reps: "10-12", label: "General Fitness",  color: "bg-secondary" },
+  hypertrophy: { pct: 0.70,  sets: "3-4",  reps: "8-12",  label: "Hypertrophy",     color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  strength:    { pct: 0.80,  sets: "4-5",  reps: "3-6",   label: "Strength",         color: "bg-primary/20 text-primary border-primary/30" },
+  hiit:        { pct: 0.50,  sets: "3",    reps: "AMRAP",  label: "HIIT / Circuit",  color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+};
+
+// Map exercise IDs to strength max keys
+const LIFT_MAX_MAP: Record<string, keyof StrengthMaxes> = {
+  bench: "bench", incline: "bench", decline: "bench",
+  squat: "squat", hack: "squat", legpress: "squat",
+  deadlift: "deadlift", rdl: "deadlift",
+  ohp: "ohp",
+};
+
+function roundToNearest5(weight: number): number {
+  return Math.round(weight / 5) * 5;
+}
+
+// Maps intake goal → preferred workout goal mode
+const GOAL_TO_WORKOUT_GOAL: Record<IntakeGoal, WorkoutGoal> = {
+  "lose-weight":  "hiit",
+  "lose-fat":     "hiit",
+  "recomp":       "general",
+  "gain-muscle":  "hypertrophy",
+  "gain-weight":  "strength",
+  "other":        "general",
+};
+
+// Which MuscleGroups to surface first based on focus
+const FOCUS_TO_MUSCLE: Record<IntakeFocus, MuscleGroup[]> = {
+  "upper-body": ["upper-body"],
+  "lower-body": ["lower-body"],
+  "core":       ["core"],
+  "cardio":     ["cardio"],
+  "full-body":  ["full-body", "upper-body", "lower-body", "core"],
+};
+
+// Goal copy shown in the "Suggested" banner
+const INTAKE_GOAL_LABELS: Record<IntakeGoal, string> = {
+  "lose-weight": "Lose Weight",
+  "lose-fat":    "Lose Body Fat",
+  "recomp":      "Body Recomp",
+  "gain-muscle": "Gain Muscle",
+  "gain-weight": "Gain Weight",
+  "other":       "General Fitness",
+};
+
+const INTAKE_FOCUS_LABELS: Record<IntakeFocus, string> = {
+  "upper-body": "Upper Body",
+  "lower-body": "Lower Body",
+  "core":       "Core",
+  "cardio":     "Cardio",
+  "full-body":  "Full Body",
+};
+
+function getSuggestedExercises(
+  allExercises: Exercise[],
+  goal: IntakeGoal,
+  focus: IntakeFocus,
+  location: WorkoutLocation
+): Exercise[] {
+  const targetMuscles = FOCUS_TO_MUSCLE[focus];
+
+  // Priority score: higher = more relevant
+  const score = (ex: Exercise): number => {
+    if (!ex.locations?.includes(location)) return -1;
+    if (ex.type === "accessory") return -1;
+
+    let s = 0;
+    if (targetMuscles.includes(ex.muscleGroup)) s += 10;
+
+    // Goal-based intensity preference
+    if (goal === "lose-weight" || goal === "lose-fat") {
+      if (ex.intensity === "high") s += 3;
+      if (ex.muscleGroup === "cardio") s += 4;
+    } else if (goal === "gain-muscle" || goal === "recomp") {
+      if (ex.intensity === "medium" || ex.intensity === "high") s += 3;
+    } else if (goal === "gain-weight") {
+      if (ex.intensity === "high") s += 4;
+    }
+
+    return s;
+  };
+
+  return allExercises
+    .map((ex) => ({ ex, score: score(ex) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(({ ex }) => ex);
+}
 
 const muscleGroupFilters: { value: MuscleGroup | "all"; label: string; icon: React.ReactNode }[] = [
   { value: "all", label: "All", icon: <Dumbbell className="h-4 w-4" /> },
@@ -48,11 +149,21 @@ export function WorkoutBuilder() {
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "all">("all");
   const [intensityFilter, setIntensityFilter] = useState<Intensity | "all">("all");
+  const [workoutLocation, setWorkoutLocation] = useState<WorkoutLocation>("gym");
   const [isComplete, setIsComplete] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | undefined>(new Date());
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [workoutLabel, setWorkoutLabel] = useState("");
+
+  const { strengthMaxes, updateStrengthMax, workoutIntake } = useWorkoutStore();
+
+  // Auto-populate workoutGoal from intake on first render
+  const derivedGoal: WorkoutGoal = workoutIntake
+    ? GOAL_TO_WORKOUT_GOAL[workoutIntake.goal]
+    : "general";
+
+  const [workoutGoal, setWorkoutGoal] = useState<WorkoutGoal>(derivedGoal);
 
   const totalDuration = useMemo(
     () => calculateTotalDuration(workoutExercises, accessories),
@@ -61,13 +172,19 @@ export function WorkoutBuilder() {
 
   const filteredExercises = useMemo(() => {
     return exercises
-      .filter((ex) => ex.type !== "accessory") // Exclude accessories from main list
+      .filter((ex) => ex.type !== "accessory")
       .filter((ex) => {
         const matchesMuscle = muscleFilter === "all" || ex.muscleGroup === muscleFilter;
         const matchesIntensity = intensityFilter === "all" || ex.intensity === intensityFilter;
-        return matchesMuscle && matchesIntensity;
+        const matchesLocation = !ex.locations || ex.locations.includes(workoutLocation);
+        return matchesMuscle && matchesIntensity && matchesLocation;
       });
-  }, [muscleFilter, intensityFilter]);
+  }, [muscleFilter, intensityFilter, workoutLocation]);
+
+  const suggestedExercises = useMemo(() => {
+    if (!workoutIntake) return [];
+    return getSuggestedExercises(exercises, workoutIntake.goal, workoutIntake.focus, workoutLocation);
+  }, [workoutIntake, workoutLocation]);
 
   const selectedIds = useMemo(
     () => new Set(workoutExercises.map((ex) => ex.id)),
@@ -151,7 +268,10 @@ export function WorkoutBuilder() {
   };
 
   const generateRandomWorkout = () => {
-    const shuffled = [...exercises].sort(() => Math.random() - 0.5);
+    const locationFiltered = exercises.filter(
+      (ex) => ex.type !== "accessory" && (!ex.locations || ex.locations.includes(workoutLocation))
+    );
+    const shuffled = [...locationFiltered].sort(() => Math.random() - 0.5);
     const selected: WorkoutExercise[] = [];
     let duration = 0;
 
@@ -244,6 +364,17 @@ export function WorkoutBuilder() {
                 <Target className="h-4 w-4 mr-2" />
                 Saved Workouts
               </Button>
+              {workoutIntake && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/workout-intake')}
+                  title="Change training preferences"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Preferences
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -344,6 +475,99 @@ export function WorkoutBuilder() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Exercise library */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Training Preferences */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <h2 className="text-sm font-semibold text-foreground">Training Preferences</h2>
+
+              {/* Location toggle */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: "gym" as WorkoutLocation, label: "Gym", icon: <Building2 className="h-4 w-4" /> },
+                    { value: "home" as WorkoutLocation, label: "Home", icon: <Home className="h-4 w-4" /> },
+                  ] as const).map((loc) => (
+                    <button
+                      key={loc.value}
+                      onClick={() => { setWorkoutLocation(loc.value); setWorkoutExercises([]); setAccessories([]); }}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border",
+                        workoutLocation === loc.value
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+                      )}
+                    >
+                      {loc.icon}
+                      {loc.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Goal selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Goal</label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(GOAL_PRESCRIPTIONS) as [WorkoutGoal, typeof GOAL_PRESCRIPTIONS[WorkoutGoal]][]).map(([goal, presc]) => (
+                    <button
+                      key={goal}
+                      onClick={() => setWorkoutGoal(goal)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
+                        workoutGoal === goal
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+                      )}
+                    >
+                      {presc.label}
+                    </button>
+                  ))}
+                </div>
+                {workoutGoal !== "general" && (
+                  <p className="text-xs text-muted-foreground">
+                    Prescription: <span className="text-foreground font-medium">{GOAL_PRESCRIPTIONS[workoutGoal].sets} sets × {GOAL_PRESCRIPTIONS[workoutGoal].reps} reps</span>
+                    {GOAL_PRESCRIPTIONS[workoutGoal].pct && (
+                      <> · <span className="text-foreground font-medium">{Math.round(GOAL_PRESCRIPTIONS[workoutGoal].pct! * 100)}% of 1RM</span></>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              {/* Strength maxes (shown for strength + hiit goals) */}
+              {(workoutGoal === "strength" || workoutGoal === "hypertrophy" || workoutGoal === "hiit") && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Weight className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">My 1-Rep Maxes (lbs) — optional</label>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {([ 
+                      { key: "bench" as const, label: "Bench Press" },
+                      { key: "squat" as const, label: "Squat" },
+                      { key: "deadlift" as const, label: "Deadlift" },
+                      { key: "ohp" as const, label: "OHP" },
+                    ]).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={strengthMaxes[key] ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value === "" ? undefined : Number(e.target.value);
+                            updateStrengthMax(key, val);
+                          }}
+                          placeholder="0"
+                          className="w-full px-2 py-1.5 border border-input rounded-md bg-background text-sm text-center"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Quick actions */}
             <div className="flex flex-wrap gap-3">
               <Button
@@ -406,28 +630,77 @@ export function WorkoutBuilder() {
               </div>
             </div>
 
+            {/* Suggested for you */}
+            {workoutIntake && suggestedExercises.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Suggested for You
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Based on: <span className="text-foreground">{INTAKE_GOAL_LABELS[workoutIntake.goal]}</span>
+                      {" · "}
+                      <span className="text-foreground">{INTAKE_FOCUS_LABELS[workoutIntake.focus]}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {suggestedExercises.map((exercise) => {
+                    const liftKey = LIFT_MAX_MAP[exercise.id];
+                    const max = liftKey ? strengthMaxes[liftKey] : undefined;
+                    const presc = GOAL_PRESCRIPTIONS[workoutGoal];
+                    const weight = (max && presc.pct) ? roundToNearest5(max * presc.pct) : undefined;
+                    const prescription = workoutGoal !== "general"
+                      ? { sets: presc.sets, reps: presc.reps, weight }
+                      : undefined;
+                    return (
+                      <ExerciseCard
+                        key={exercise.id}
+                        exercise={exercise}
+                        onAdd={handleAddExercise}
+                        isSelected={selectedIds.has(exercise.id)}
+                        disabled={totalDuration + exercise.duration + 30 > WORKOUT_DURATION + 60}
+                        prescription={prescription}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="border-t border-border" />
+              </div>
+            )}
+
             {/* Exercise grid */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">
-                  Available Exercises
+                  {workoutIntake ? "All Exercises" : "Available Exercises"}
                 </h2>
                 <span className="text-sm text-muted-foreground">
                   {filteredExercises.length} exercises
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredExercises.map((exercise) => (
-                  <ExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    onAdd={handleAddExercise}
-                    isSelected={selectedIds.has(exercise.id)}
-                    disabled={
-                      totalDuration + exercise.duration + 30 > WORKOUT_DURATION + 60
-                    }
-                  />
-                ))}
+                {filteredExercises.map((exercise) => {
+                  const liftKey = LIFT_MAX_MAP[exercise.id];
+                  const max = liftKey ? strengthMaxes[liftKey] : undefined;
+                  const presc = GOAL_PRESCRIPTIONS[workoutGoal];
+                  const weight = (max && presc.pct) ? roundToNearest5(max * presc.pct) : undefined;
+                  const prescription = workoutGoal !== "general"
+                    ? { sets: presc.sets, reps: presc.reps, weight }
+                    : undefined;
+                  return (
+                    <ExerciseCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      onAdd={handleAddExercise}
+                      isSelected={selectedIds.has(exercise.id)}
+                      disabled={totalDuration + exercise.duration + 30 > WORKOUT_DURATION + 60}
+                      prescription={prescription}
+                    />
+                  );
+                })}
               </div>
             </div>
 

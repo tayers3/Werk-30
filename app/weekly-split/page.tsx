@@ -18,7 +18,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Dumbbell, Moon, Play, RotateCcw, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Dumbbell, Moon, Play, RotateCcw, Check, X, Save, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DAYS: DayOfWeek[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -35,11 +37,13 @@ const DAY_FULL: Record<DayOfWeek, string> = {
 
 export default function WeeklySplitPage() {
   const router = useRouter();
-  const { weeklySplit, savedWorkouts, updateWeeklySplitDay, resetWeeklySplit, setPendingWorkout } =
+  const { weeklySplit, savedWorkouts, updateWeeklySplitDay, resetWeeklySplit, setPendingWorkout, saveWeeklySplit, clearSavedWeeklySplit, savedWeeklySplit } =
     useWorkoutStore();
 
   const [editingDay, setEditingDay] = useState<DayOfWeek | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
+  const [showSaveSplitDialog, setShowSaveSplitDialog] = useState(false);
+  const [splitNameDraft, setSplitNameDraft] = useState("");
 
   const today = new Date()
     .toLocaleDateString("en-US", { weekday: "short" })
@@ -105,6 +109,12 @@ export default function WeeklySplitPage() {
               </div>
             </div>
 
+            {/* Save Split */}
+            <Button variant="outline" size="sm" onClick={() => { setSplitNameDraft(savedWeeklySplit?.name ?? ""); setShowSaveSplitDialog(true); }}>
+              <Save className="h-4 w-4 mr-2" />
+              {savedWeeklySplit ? "Update Split" : "Save Split"}
+            </Button>
+
             {/* Reset with confirmation */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -126,6 +136,7 @@ export default function WeeklySplitPage() {
                   <AlertDialogAction
                     onClick={() => {
                       resetWeeklySplit();
+                      clearSavedWeeklySplit();
                       setEditingDay(null);
                       setLabelDraft("");
                     }}
@@ -139,7 +150,60 @@ export default function WeeklySplitPage() {
         </div>
       </header>
 
+      {/* Save Split Dialog */}
+      <Dialog open={showSaveSplitDialog} onOpenChange={setShowSaveSplitDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{savedWeeklySplit ? "Update Saved Split" : "Save Weekly Split"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="split-name">Split Name (optional)</Label>
+              <Input
+                id="split-name"
+                placeholder="e.g. PPL Split, 5-Day Bro Split…"
+                value={splitNameDraft}
+                onChange={(e) => setSplitNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    saveWeeklySplit(splitNameDraft.trim() || "My Weekly Split");
+                    setShowSaveSplitDialog(false);
+                  }
+                }}
+              />
+            </div>
+            {savedWeeklySplit && (
+              <p className="text-xs text-muted-foreground">
+                Last saved: <strong>{savedWeeklySplit.name}</strong> on{" "}
+                {new Date(savedWeeklySplit.savedAt).toLocaleDateString()}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSaveSplitDialog(false)}>Cancel</Button>
+              <Button onClick={() => { saveWeeklySplit(splitNameDraft.trim() || "My Weekly Split"); setShowSaveSplitDialog(false); }}>
+                <Bookmark className="h-4 w-4 mr-2" />
+                {savedWeeklySplit ? "Update" : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
+        {/* Saved split banner */}
+        {savedWeeklySplit && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
+            <Bookmark className="h-4 w-4 text-primary shrink-0" />
+            <span className="flex-1 text-foreground">
+              Saved as <strong>{savedWeeklySplit.name}</strong>
+              <span className="text-muted-foreground ml-1">· {new Date(savedWeeklySplit.savedAt).toLocaleDateString()}</span>
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setSplitNameDraft(savedWeeklySplit.name); setShowSaveSplitDialog(true); }}>
+              Update
+            </Button>
+          </div>
+        )}
+
         {/* Legend */}
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pb-2">
           <span className="flex items-center gap-1.5">
