@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react";
 import { WorkoutExercise, calculateTotalDuration } from "@/lib/workout-store";
 import { WorkoutList } from "@/components/workout-list";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ function WorkoutPageContent() {
   const router = useRouter();
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
-  const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
 
@@ -33,22 +32,22 @@ function WorkoutPageContent() {
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const allExercises = [...workoutExercises, ...accessories];
+  const allExercises = useMemo(
+    () => [...workoutExercises, ...accessories],
+    [workoutExercises, accessories]
+  );
   const currentExercise = allExercises[currentIndex];
   const nextExercise = allExercises[currentIndex + 1];
 
   // Initialize timer when exercises are loaded
   useEffect(() => {
     if (workoutExercises.length > 0 && !startTime) {
-      const firstExercise = allExercises[0];
-      if (firstExercise) {
-        setTimeRemaining(firstExercise.duration);
-        setStartTime(new Date());
-        setIsPlaying(true);
-        setCurrentSet(1);
-      }
+      setTimeRemaining(workoutExercises[0].duration);
+      setStartTime(new Date());
+      setIsPlaying(true);
+      setCurrentSet(1);
     }
-  }, [workoutExercises, accessories, startTime, allExercises]);
+  }, [workoutExercises, startTime]);
 
   const playBeep = useCallback((frequency: number = 800, duration: number = 150) => {
     if (isMuted) return;
@@ -110,44 +109,55 @@ function WorkoutPageContent() {
     if (!currentExercise) return;
 
     if (phase === "exercise") {
-      // Finished an exercise set
       if (currentSet < currentExercise.sets) {
-        // More sets to do for this exercise
-        setPhase("set-rest");
-        setTimeRemaining(currentExercise.restAfter);
-        setCurrentSet(currentSet + 1);
-        playBeep(600);
-      } else {
-        // Finished all sets of this exercise
-        if (currentIndex < allExercises.length - 1) {
-          // More exercises to do
+        // More sets remaining for this exercise
+        const nextSet = currentSet + 1;
+        setCurrentSet(nextSet);
+        if (currentExercise.restAfter > 0) {
+          setPhase("set-rest");
+          setTimeRemaining(currentExercise.restAfter);
+          playBeep(600);
+        } else {
+          // No rest — stay in exercise phase for the next set
+          setTimeRemaining(currentExercise.duration);
+          playBeep(800);
+        }
+      } else if (currentIndex < allExercises.length - 1) {
+        // All sets done; move to rest before next exercise
+        if (currentExercise.restAfter > 0) {
           setPhase("rest");
           setTimeRemaining(currentExercise.restAfter);
           playBeep(600);
         } else {
-          // Finished all exercises
-          setPhase("complete");
-          setIsPlaying(false);
-          playBeep(1000);
-          setTimeout(() => playBeep(1200), 200);
-          setTimeout(() => playBeep(1400), 400);
-          setIsComplete(true);
+          // No rest — jump straight to next exercise
+          const nextEx = allExercises[currentIndex + 1];
+          setCurrentIndex(currentIndex + 1);
+          setPhase("exercise");
+          setTimeRemaining(nextEx.duration);
+          setCurrentSet(1);
+          playBeep(800);
         }
+      } else {
+        // All exercises complete
+        setPhase("complete");
+        setIsPlaying(false);
+        playBeep(1000);
+        setTimeout(() => playBeep(1200), 200);
+        setTimeout(() => playBeep(1400), 400);
+        setIsComplete(true);
       }
     } else if (phase === "set-rest") {
-      // Finished rest between sets, start next set
+      // Rest between sets done — resume same exercise, next set
       setPhase("exercise");
       setTimeRemaining(currentExercise.duration);
       playBeep(800);
     } else if (phase === "rest") {
-      // Finished rest after exercise, start next exercise
+      // Rest after exercise done — start next exercise
+      const nextEx = allExercises[currentIndex + 1];
       setCurrentIndex(currentIndex + 1);
       setPhase("exercise");
-      const nextEx = allExercises[currentIndex + 1];
-      if (nextEx) {
-        setTimeRemaining(nextEx.duration);
-        setCurrentSet(1);
-      }
+      setTimeRemaining(nextEx.duration);
+      setCurrentSet(1);
       playBeep(800);
     }
   }, [phase, currentExercise, currentIndex, allExercises, currentSet, playBeep]);
@@ -259,17 +269,6 @@ function WorkoutPageContent() {
   const handleBackToBuilder = () => {
     router.push("/");
   };
-
-  if (showTimer) {
-    return (
-      <WorkoutTimer
-        exercises={workoutExercises}
-        accessories={accessories}
-        onComplete={() => setIsComplete(true)}
-        onClose={() => setShowTimer(false)}
-      />
-    );
-  }
 
   if (workoutExercises.length === 0) {
     return (
