@@ -501,43 +501,63 @@ function WorkoutPageContent() {
       </main>
 
       {/* ── Sticky Controls Footer ── always visible ── */}
-      {!isComplete && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg">
-          <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col items-center gap-2">
-            {/* Row 1: Start / Pause / Resume / Stop / End */}
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              {!startTime ? (
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col items-center gap-2">
+          {/* Row 1: Start / Pause / Resume / Stop / End / Back */}
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {isComplete ? (
+              <>
                 <Button onClick={handleStartWorkout} size="lg" className="px-10">
                   <Play className="h-5 w-5 mr-2" />
-                  Start Workout
+                  Start Again
                 </Button>
-              ) : (
-                <>
-                  {isPlaying ? (
-                    <Button onClick={handlePauseWorkout} variant="secondary" size="default" className="px-5">
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pause
-                    </Button>
-                  ) : (
-                    <Button onClick={handleResumeWorkout} size="default" className="px-5">
-                      <Play className="h-4 w-4 mr-2" />
-                      Resume
-                    </Button>
-                  )}
-                  <Button onClick={handleStopTimer} variant="outline" size="default" className="px-5">
-                    <StopCircle className="h-4 w-4 mr-2" />
-                    Stop
+                <Button onClick={handleBackToBuilder} variant="outline" size="default" className="px-5">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Builder
+                </Button>
+                <Button
+                  onClick={() => setShowSaveDialog(true)}
+                  variant="outline"
+                  size="default"
+                  disabled={saved}
+                  className="px-4"
+                >
+                  <BookmarkPlus className="h-4 w-4 mr-1" />
+                  {saved ? "Saved" : "Save Workout"}
+                </Button>
+              </>
+            ) : !startTime ? (
+              <Button onClick={handleStartWorkout} size="lg" className="px-10">
+                <Play className="h-5 w-5 mr-2" />
+                Start Workout
+              </Button>
+            ) : (
+              <>
+                {isPlaying ? (
+                  <Button onClick={handlePauseWorkout} variant="secondary" size="default" className="px-5">
+                    <Pause className="h-4 w-4 mr-2" />
+                    Pause
                   </Button>
-                  <Button onClick={handleEndWorkout} variant="destructive" size="default" className="px-5">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    End Workout
+                ) : (
+                  <Button onClick={handleResumeWorkout} size="default" className="px-5">
+                    <Play className="h-4 w-4 mr-2" />
+                    Resume
                   </Button>
-                </>
-              )}
-            </div>
+                )}
+                <Button onClick={handleStopTimer} variant="outline" size="default" className="px-5">
+                  <StopCircle className="h-4 w-4 mr-2" />
+                  Stop
+                </Button>
+                <Button onClick={handleEndWorkout} variant="destructive" size="default" className="px-5">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  End Workout
+                </Button>
+              </>
+            )}
+          </div>
 
-            {/* Row 2: Previous / Next + Save — only shown after starting */}
-            {startTime && (
+          {/* Row 2: Previous / Next + Save — only shown during active workout */}
+          {startTime && !isComplete && (
               <div className="flex items-center gap-2">
                 <Button
                   onClick={goToPrevious}
@@ -574,10 +594,9 @@ function WorkoutPageContent() {
                   {saved ? "Saved" : "Save"}
                 </Button>
               </div>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Save Workout Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
