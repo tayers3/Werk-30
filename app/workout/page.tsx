@@ -107,6 +107,8 @@ function WorkoutPageContent() {
     setIsPlaying(false);
     setPhase("complete");
     setIsComplete(true);
+    // Scroll to top so the completion message is immediately visible
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleStopTimer = () => {

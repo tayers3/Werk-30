@@ -13,6 +13,10 @@ interface WorkoutListProps {
   onRestChange: (order: number, restTime: number) => void;
   totalDuration: number;
   maxDuration: number;
+  /** Optional: called when the user edits the sets count for an exercise */
+  onSetsChange?: (order: number, sets: number) => void;
+  /** Optional: called when the user edits the reps value for an exercise */
+  onRepsChange?: (order: number, reps: string) => void;
 }
 
 const REST_OPTIONS = [0, 15, 30, 45, 60];
@@ -24,6 +28,8 @@ export function WorkoutList({
   onRestChange,
   totalDuration,
   maxDuration,
+  onSetsChange,
+  onRepsChange,
 }: WorkoutListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -163,9 +169,46 @@ export function WorkoutList({
                       {exercise.name}
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDuration(exercise.duration)} • {exercise.sets} sets • {exercise.reps} reps
-                  </span>
+                  {/* Duration is always read-only; sets & reps are editable when callbacks provided */}
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDuration(exercise.duration)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    {onSetsChange ? (
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span>Sets:</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={exercise.sets}
+                          onChange={(e) =>
+                            onSetsChange(exercise.order, Math.max(1, parseInt(e.target.value) || 1))
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-10 px-1 py-0.5 text-xs border border-input rounded bg-background text-foreground text-center"
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{exercise.sets} sets</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">•</span>
+                    {onRepsChange ? (
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span>Reps:</span>
+                        <input
+                          type="text"
+                          value={exercise.reps}
+                          onChange={(e) => onRepsChange(exercise.order, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-14 px-1 py-0.5 text-xs border border-input rounded bg-background text-foreground text-center"
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{exercise.reps} reps</span>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => onRemove(exercise.order)}

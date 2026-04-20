@@ -4,10 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkoutStore, DayOfWeek, WeeklySplitDay } from "@/lib/workout-store";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Dumbbell, Moon, Play, RotateCcw, Check } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Dumbbell, Moon, Play, RotateCcw, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DAYS: DayOfWeek[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -30,7 +41,9 @@ export default function WeeklySplitPage() {
   const [editingDay, setEditingDay] = useState<DayOfWeek | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
 
-  const today = new Date().toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3) as DayOfWeek;
+  const today = new Date()
+    .toLocaleDateString("en-US", { weekday: "short" })
+    .slice(0, 3) as DayOfWeek;
 
   const handleToggleType = (day: DayOfWeek) => {
     const current = weeklySplit[day];
@@ -86,21 +99,61 @@ export default function WeeklySplitPage() {
               <div>
                 <h1 className="text-xl font-bold text-foreground">Weekly Split</h1>
                 <p className="text-xs text-muted-foreground">
-                  {workoutDays} workout days · {restDays} rest days
+                  {workoutDays} workout day{workoutDays !== 1 ? "s" : ""} ·{" "}
+                  {restDays} rest day{restDays !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={resetWeeklySplit}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
+
+            {/* Reset with confirmation */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset Weekly Split?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will clear all assigned workouts, labels, and rest days. Every day will
+                    return to a blank workout day. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      resetWeeklySplit();
+                      setEditingDay(null);
+                      setLabelDraft("");
+                    }}
+                  >
+                    Reset
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-3">
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pb-2">
+          <span className="flex items-center gap-1.5">
+            <Dumbbell className="h-3.5 w-3.5 text-primary" />
+            Workout day — tap to make Rest
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Moon className="h-3.5 w-3.5 text-muted-foreground" />
+            Rest day — tap to make Workout
+          </span>
+        </div>
+
         {DAYS.map((day) => {
-          const slot = weeklySplit[day];
+          const slot: WeeklySplitDay = weeklySplit[day];
           const isRest = slot.type === "rest";
           const isToday = day === today;
           const assignedWorkout = savedWorkouts.find((w) => w.id === slot.workoutId);
@@ -109,14 +162,14 @@ export default function WeeklySplitPage() {
             <Card
               key={day}
               className={cn(
-                "transition-all",
-                isToday && "ring-2 ring-primary",
-                isRest && "opacity-70"
+                "transition-all border-2",
+                isToday ? "border-primary" : "border-border",
+                isRest ? "bg-muted/30 opacity-80" : "bg-card"
               )}
             >
               <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  {/* Day label + today badge */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Day name */}
                   <div className="w-24 shrink-0">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-foreground">{DAY_FULL[day]}</span>
@@ -129,53 +182,60 @@ export default function WeeklySplitPage() {
                     <span className="text-xs text-muted-foreground">{day}</span>
                   </div>
 
-                  {/* Type toggle */}
+                  {/* Rest / Workout toggle */}
                   <button
                     onClick={() => handleToggleType(day)}
+                    title={isRest ? "Switch to Workout Day" : "Switch to Rest Day"}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors shrink-0",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border shrink-0",
                       isRest
-                        ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                        ? "bg-muted border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
                     )}
                   >
                     {isRest ? (
                       <>
                         <Moon className="h-3.5 w-3.5" />
-                        Rest
+                        Rest Day
                       </>
                     ) : (
                       <>
                         <Dumbbell className="h-3.5 w-3.5" />
-                        Workout
+                        Workout Day
                       </>
                     )}
                   </button>
 
-                  {/* Workout assignment — only for workout days */}
+                  {/* Workout day controls */}
                   {!isRest && (
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
                       {editingDay === day ? (
-                        /* Label editor */
-                        <div className="flex items-center gap-2 w-full">
+                        <div className="flex items-center gap-2 flex-1">
                           <Input
                             value={labelDraft}
                             onChange={(e) => setLabelDraft(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSaveLabel(day)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveLabel(day);
+                              if (e.key === "Escape") setEditingDay(null);
+                            }}
                             placeholder="e.g. Push Day, Leg Day…"
                             className="text-sm h-8"
                             autoFocus
                           />
-                          <Button size="sm" onClick={() => handleSaveLabel(day)}>
+                          <Button size="sm" className="h-8 px-2" onClick={() => handleSaveLabel(day)}>
                             <Check className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingDay(null)}>
-                            ✕
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2"
+                            onClick={() => setEditingDay(null)}
+                          >
+                            <X className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       ) : (
                         <>
-                          {/* Saved workout selector */}
                           {savedWorkouts.length > 0 && (
                             <select
                               value={slot.workoutId ?? ""}
@@ -184,9 +244,9 @@ export default function WeeklySplitPage() {
                                   ? handleAssignWorkout(day, e.target.value)
                                   : handleClearWorkout(day)
                               }
-                              className="text-sm border border-input rounded-md px-2 py-1 bg-background text-foreground min-w-0 max-w-[180px]"
+                              className="text-sm border border-input rounded-md px-2 py-1 bg-background text-foreground min-w-0 max-w-[200px]"
                             >
-                              <option value="">— Choose workout —</option>
+                              <option value="">— Assign workout —</option>
                               {savedWorkouts.map((w) => (
                                 <option key={w.id} value={w.id}>
                                   {w.label || w.name}
@@ -195,13 +255,12 @@ export default function WeeklySplitPage() {
                             </select>
                           )}
 
-                          {/* Custom label */}
                           <button
                             onClick={() => {
                               setEditingDay(day);
                               setLabelDraft(slot.label ?? "");
                             }}
-                            className="text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate max-w-[120px]"
+                            className="text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate max-w-[140px] shrink-0"
                           >
                             {slot.label && !assignedWorkout ? slot.label : "Add label"}
                           </button>
@@ -218,11 +277,11 @@ export default function WeeklySplitPage() {
 
                   {isRest && (
                     <div className="flex-1 text-sm text-muted-foreground italic">
-                      Recovery day
+                      Recovery — no workout assigned
                     </div>
                   )}
 
-                  {/* Start button — only for workout days with an assigned workout */}
+                  {/* Start button */}
                   {!isRest && slot.workoutId && (
                     <Button size="sm" onClick={() => handleStartDay(day)} className="shrink-0">
                       <Play className="h-3.5 w-3.5 mr-1.5" />
@@ -236,14 +295,19 @@ export default function WeeklySplitPage() {
         })}
 
         {savedWorkouts.length === 0 && (
-          <Card className="border-dashed">
+          <Card className="border-dashed mt-4">
             <CardContent className="py-8 text-center text-muted-foreground">
               <Dumbbell className="h-8 w-8 mx-auto mb-3 opacity-40" />
               <p className="text-sm">No saved workouts yet.</p>
               <p className="text-xs mt-1">
                 Build and save workouts first, then assign them to days here.
               </p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => router.push("/")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => router.push("/")}
+              >
                 Build a Workout
               </Button>
             </CardContent>
@@ -253,3 +317,4 @@ export default function WeeklySplitPage() {
     </div>
   );
 }
+

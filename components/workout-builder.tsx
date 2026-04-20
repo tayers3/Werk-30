@@ -6,7 +6,6 @@ import { exercises, Exercise, MuscleGroup, Intensity, getAccessories } from "@/l
 import { WorkoutExercise, calculateTotalDuration, useWorkoutStore, WorkoutPlan, generateWorkoutId } from "@/lib/workout-store";
 import { ExerciseCard } from "./exercise-card";
 import { WorkoutList } from "./workout-list";
-import { WorkoutTimer } from "./workout-timer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
@@ -49,7 +48,6 @@ export function WorkoutBuilder() {
   const [accessories, setAccessories] = useState<WorkoutExercise[]>([]);
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "all">("all");
   const [intensityFilter, setIntensityFilter] = useState<Intensity | "all">("all");
-  const [showTimer, setShowTimer] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | undefined>(new Date());
@@ -111,6 +109,23 @@ export function WorkoutBuilder() {
     );
   };
 
+  // Sets & reps are independently editable; duration is never modified here
+  const handleUpdateSets = (order: number, sets: number) => {
+    setWorkoutExercises(
+      workoutExercises.map((ex) =>
+        ex.order === order ? { ...ex, sets: Math.max(1, sets) } : ex
+      )
+    );
+  };
+
+  const handleUpdateReps = (order: number, reps: string) => {
+    setWorkoutExercises(
+      workoutExercises.map((ex) =>
+        ex.order === order ? { ...ex, reps } : ex
+      )
+    );
+  };
+
   const handleAddAccessory = (exercise: Exercise) => {
     if (accessories.length >= 2) return; // Max 2 accessories
 
@@ -163,7 +178,7 @@ export function WorkoutBuilder() {
       exercises: workoutExercises,
       accessories: accessories,
     });
-    router.push("/workout");
+    router.push("/workout-preview");
   };
 
   const handleScheduleWorkout = () => {
@@ -196,17 +211,6 @@ export function WorkoutBuilder() {
     setWorkoutLabel("");
     alert("Workout saved! You can find it in your previous workouts.");
   };
-
-  if (showTimer) {
-    return (
-      <WorkoutTimer
-        exercises={workoutExercises}
-        accessories={accessories}
-        onComplete={() => setIsComplete(true)}
-        onClose={() => setShowTimer(false)}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -465,6 +469,8 @@ export function WorkoutBuilder() {
                 onRemove={handleRemoveExercise}
                 onReorder={handleReorder}
                 onRestChange={handleRestChange}
+                onSetsChange={handleUpdateSets}
+                onRepsChange={handleUpdateReps}
                 totalDuration={totalDuration}
                 maxDuration={WORKOUT_DURATION}
               />
@@ -473,7 +479,7 @@ export function WorkoutBuilder() {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() => setShowTimer(true)}
+                    onClick={handleCraftWorkout}
                     disabled={!canStartWorkout}
                   >
                     <Play className="h-5 w-5 mr-2" />
