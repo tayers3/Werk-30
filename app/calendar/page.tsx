@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { format, isSameDay } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Target } from "lucide-react";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -50,10 +50,16 @@ export default function CalendarPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={handleAddWorkout}>
-              <Plus className="h-4 w-4 mr-2" />
-              Schedule Workout
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => router.push('/saved-workouts')}>
+                <Target className="h-4 w-4 mr-2" />
+                Saved Workouts
+              </Button>
+              <Button onClick={handleAddWorkout}>
+                <Plus className="h-4 w-4 mr-2" />
+                Schedule Workout
+              </Button>
+            </div>
           </div>
         </div>
       </header>

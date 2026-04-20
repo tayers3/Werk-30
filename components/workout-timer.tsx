@@ -57,6 +57,13 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
     setIsPlaying(false);
   };
 
+  const handleEndWorkout = () => {
+    setStopTime(new Date());
+    setIsPlaying(false);
+    setPhase("complete");
+    onComplete();
+  };
+
   const toggleExerciseComplete = (index: number) => {
     const newCompleted = new Set(completedExercises);
     if (newCompleted.has(index)) {
@@ -211,14 +218,6 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
           )}
         </div>
         <div className="flex items-center gap-2">
-          {startTime && !stopTime && (
-            <button
-              onClick={handleStopWorkout}
-              className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 text-sm font-medium transition-colors"
-            >
-              Stop
-            </button>
-          )}
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="p-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -335,45 +334,75 @@ export function WorkoutTimer({ exercises, accessories = [], onComplete, onClose 
             )}
 
             {/* Controls */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={goToPrevious}
-                disabled={currentIndex === 0 && phase === "exercise"}
-                className="p-3 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  if (!isPlaying && !startTime) {
-                    handleStartWorkout();
-                  } else {
-                    setIsPlaying(!isPlaying);
-                  }
-                }}
-                className={cn(
-                  "p-6 rounded-full transition-colors",
-                  isPlaying
-                    ? "bg-accent text-accent-foreground"
-                    : "bg-primary text-primary-foreground"
-                )}
-              >
-                {isPlaying ? (
-                  <Pause className="h-8 w-8" />
+            <div className="flex flex-col items-center gap-4">
+              {/* Main control buttons */}
+              <div className="flex items-center gap-3">
+                {!startTime ? (
+                  <Button
+                    onClick={handleStartWorkout}
+                    size="lg"
+                    className="px-8"
+                  >
+                    <Play className="h-5 w-5 mr-2" />
+                    Start Workout
+                  </Button>
                 ) : (
-                  <Play className="h-8 w-8 ml-1" />
+                  <>
+                    <Button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      variant={isPlaying ? "secondary" : "default"}
+                      size="lg"
+                      className="px-6"
+                    >
+                      {isPlaying ? (
+                        <>
+                          <Pause className="h-5 w-5 mr-2" />
+                          Pause
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-5 w-5 mr-2" />
+                          Resume
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleEndWorkout}
+                      variant="destructive"
+                      size="lg"
+                      className="px-6"
+                    >
+                      <Square className="h-5 w-5 mr-2" />
+                      End Workout
+                    </Button>
+                  </>
                 )}
-              </button>
-              <button
-                onClick={goToNext}
-                className="p-3 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-              >
-                {currentIndex === exercises.length - 1 && phase !== "rest" ? (
-                  <SkipForward className="h-6 w-6" />
-                ) : (
-                  <ChevronRight className="h-6 w-6" />
-                )}
-              </button>
+              </div>
+
+              {/* Exercise navigation buttons */}
+              {startTime && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={goToPrevious}
+                    variant="outline"
+                    size="lg"
+                    disabled={currentIndex === 0 && phase === "exercise"}
+                    className="px-4"
+                  >
+                    <ChevronLeft className="h-5 w-5 mr-1" />
+                    Previous Exercise
+                  </Button>
+                  <Button
+                    onClick={goToNext}
+                    variant="outline"
+                    size="lg"
+                    className="px-4"
+                  >
+                    Next Exercise
+                    <ChevronRight className="h-5 w-5 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         )}

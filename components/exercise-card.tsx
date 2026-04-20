@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { Exercise, formatDuration } from "@/lib/exercises";
 import { cn } from "@/lib/utils";

@@ -159,7 +159,7 @@ export function WorkoutList({
                     </span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatDuration(exercise.duration)}
+                    {formatDuration(exercise.duration)} • {exercise.sets} sets • {exercise.reps} reps
                   </span>
                 </div>
                 <button

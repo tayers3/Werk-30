@@ -53,6 +53,8 @@ export function WorkoutBuilder() {
   const [isComplete, setIsComplete] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | undefined>(new Date());
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [workoutLabel, setWorkoutLabel] = useState("");
 
   const totalDuration = useMemo(
     () => calculateTotalDuration(workoutExercises, accessories),
@@ -181,6 +183,21 @@ export function WorkoutBuilder() {
     alert(`Workout scheduled for ${selectedScheduleDate.toLocaleDateString()}! Check the calendar.`);
   };
 
+  const handleSaveWorkout = () => {
+    const workoutPlan: WorkoutPlan = {
+      id: generateWorkoutId(),
+      name: workoutLabel || `Custom Workout ${new Date().toLocaleDateString()}`,
+      exercises: workoutExercises,
+      accessories: accessories,
+      totalDuration,
+      createdAt: new Date(),
+    };
+    useWorkoutStore.getState().saveWorkout(workoutPlan, workoutLabel);
+    setShowSaveDialog(false);
+    setWorkoutLabel("");
+    alert("Workout saved! You can find it in your previous workouts.");
+  };
+
   if (showTimer) {
     return (
       <WorkoutTimer
@@ -215,6 +232,14 @@ export function WorkoutBuilder() {
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 Calendar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/saved-workouts')}
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Saved Workouts
               </Button>
               <Button
                 variant="outline"
@@ -262,6 +287,45 @@ export function WorkoutBuilder() {
                       </Button>
                       <Button onClick={handleScheduleWorkout} disabled={!selectedScheduleDate}>
                         Schedule
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canStartWorkout}
+                  >
+                    <Target className="h-4 w-4 mr-2" />
+                    Save Workout
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save Your Workout</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                        Workout Label (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={workoutLabel}
+                        onChange={(e) => setWorkoutLabel(e.target.value)}
+                        placeholder="e.g., Upper Body Focus, Leg Day, etc."
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveWorkout}>
+                        Save Workout
                       </Button>
                     </div>
                   </div>
