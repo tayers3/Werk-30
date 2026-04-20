@@ -201,6 +201,7 @@ export function WorkoutBuilder() {
 
     const newExercise: WorkoutExercise = {
       ...exercise,
+      type: exercise.type ?? "main",
       order: workoutExercises.length,
       restAfter: 30, // default 30 seconds rest
     };
@@ -248,6 +249,7 @@ export function WorkoutBuilder() {
 
     const newAccessory: WorkoutExercise = {
       ...exercise,
+      type: exercise.type ?? "accessory",
       order: accessories.length,
       restAfter: 30, // default 30 seconds rest
     };
@@ -280,6 +282,7 @@ export function WorkoutBuilder() {
       if (duration + exerciseTime <= WORKOUT_DURATION) {
         selected.push({
           ...exercise,
+          type: exercise.type ?? "main",
           order: selected.length,
           restAfter: 30,
         });

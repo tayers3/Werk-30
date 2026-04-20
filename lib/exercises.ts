@@ -1,6 +1,6 @@
-export type MuscleGroup = 
+export type MuscleGroup =
   | "full-body"
-  | "upper-body" 
+  | "upper-body"
   | "lower-body"
   | "core"
   | "cardio"
@@ -11,19 +11,26 @@ export type ExerciseType = "main" | "accessory";
 
 export type Intensity = "low" | "medium" | "high";
 
+export type Location = "gym" | "home";
+
+/** Reps can be a number (e.g. 10), a range string (e.g. "8-12"), or a timed string (e.g. "30 sec"). */
+export type Reps = number | `${number}-${number}` | string;
+
 export interface Exercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
   intensity: Intensity;
-  duration: number; // in seconds
+  /** Duration of the exercise block in seconds. */
+  duration: number;
   description: string;
   instructions?: string[];
   sets: number;
-  reps: number | string;
-  locations?: string[];
+  reps: Reps;
+  locations?: Location[];
   youtube?: string;
-  type?: ExerciseType; // "main" or "accessory"
+  /** Defaults to "main" when not specified. */
+  type?: ExerciseType;
 }
 
 export const exercises: Exercise[] = [

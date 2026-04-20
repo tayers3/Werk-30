@@ -1,11 +1,15 @@
-import { Exercise } from "./exercises";
+import { Exercise, ExerciseType } from "./exercises";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export interface WorkoutExercise extends Exercise {
+/** An exercise placed inside a workout plan. `type` is required here (defaults to "main"). */
+export interface WorkoutExercise extends Omit<Exercise, "type"> {
+  type: ExerciseType;
   order: number;
-  restAfter: number; // rest time in seconds after this exercise
-  parentExerciseId?: string | null; // for accessories: the id of the main exercise they belong to
+  /** Rest time in seconds following this exercise. */
+  restAfter: number;
+  /** For accessories: the `id` of the main exercise this is paired with. */
+  parentExerciseId?: string | null;
 }
 
 export interface WorkoutPlan {
