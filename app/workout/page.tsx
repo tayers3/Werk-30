@@ -277,7 +277,7 @@ function WorkoutPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-36">{/* pb-36 reserves space for sticky controls */}
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -392,7 +392,7 @@ function WorkoutPageContent() {
               </div>
 
               {/* Timer Circle */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-2">
                 <div className="relative">
                   <svg className="w-32 h-32 md:w-40 md:h-40 transform -rotate-90">
                     <circle
@@ -433,73 +433,6 @@ function WorkoutPageContent() {
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex flex-col items-center gap-3">
-                {/* Row 1: Start / Pause / Resume / Stop / End */}
-                <div className="flex items-center gap-2 flex-wrap justify-center">
-                  {!startTime ? (
-                    /* ── START ── */
-                    <Button onClick={handleStartWorkout} size="lg" className="px-8">
-                      <Play className="h-5 w-5 mr-2" />
-                      Start
-                    </Button>
-                  ) : (
-                    <>
-                      {/* ── PAUSE / RESUME ── */}
-                      {isPlaying ? (
-                        <Button onClick={handlePauseWorkout} variant="secondary" size="lg" className="px-6">
-                          <Pause className="h-5 w-5 mr-2" />
-                          Pause
-                        </Button>
-                      ) : (
-                        <Button onClick={handleResumeWorkout} size="lg" className="px-6">
-                          <Play className="h-5 w-5 mr-2" />
-                          Resume
-                        </Button>
-                      )}
-
-                      {/* ── STOP (reset current timer) ── */}
-                      <Button onClick={handleStopTimer} variant="outline" size="lg" className="px-6">
-                        <StopCircle className="h-5 w-5 mr-2" />
-                        Stop
-                      </Button>
-
-                      {/* ── END WORKOUT ── */}
-                      <Button onClick={handleEndWorkout} variant="destructive" size="lg" className="px-6">
-                        <LogOut className="h-5 w-5 mr-2" />
-                        End Workout
-                      </Button>
-                    </>
-                  )}
-                </div>
-
-                {/* Row 2: Previous / Next exercise */}
-                {startTime && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={goToPrevious}
-                      variant="outline"
-                      size="lg"
-                      disabled={currentIndex === 0 && phase === "exercise" && currentSet === 1}
-                      className="px-4"
-                    >
-                      <ChevronLeft className="h-5 w-5 mr-1" />
-                      Previous Exercise
-                    </Button>
-                    <Button
-                      onClick={goToNext}
-                      variant="outline"
-                      size="lg"
-                      disabled={currentIndex === allExercises.length - 1 && phase === "exercise" && currentSet === currentExercise?.sets}
-                      className="px-4"
-                    >
-                      Next Exercise
-                      <ChevronRight className="h-5 w-5 ml-1" />
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -544,6 +477,75 @@ function WorkoutPageContent() {
           />
         </div>
       </main>
+
+      {/* ── Sticky Controls Footer ── always visible ── */}
+      {!isComplete && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col items-center gap-2">
+            {/* Row 1: Start / Pause / Resume / Stop / End */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {!startTime ? (
+                <Button onClick={handleStartWorkout} size="lg" className="px-10">
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Workout
+                </Button>
+              ) : (
+                <>
+                  {isPlaying ? (
+                    <Button onClick={handlePauseWorkout} variant="secondary" size="default" className="px-5">
+                      <Pause className="h-4 w-4 mr-2" />
+                      Pause
+                    </Button>
+                  ) : (
+                    <Button onClick={handleResumeWorkout} size="default" className="px-5">
+                      <Play className="h-4 w-4 mr-2" />
+                      Resume
+                    </Button>
+                  )}
+                  <Button onClick={handleStopTimer} variant="outline" size="default" className="px-5">
+                    <StopCircle className="h-4 w-4 mr-2" />
+                    Stop
+                  </Button>
+                  <Button onClick={handleEndWorkout} variant="destructive" size="default" className="px-5">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    End Workout
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Row 2: Previous / Next — only shown after starting */}
+            {startTime && (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={goToPrevious}
+                  variant="outline"
+                  size="default"
+                  disabled={currentIndex === 0 && phase === "exercise" && currentSet === 1}
+                  className="px-4"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  onClick={goToNext}
+                  variant="outline"
+                  size="default"
+                  disabled={
+                    currentIndex === allExercises.length - 1 &&
+                    phase === "exercise" &&
+                    currentSet === currentExercise?.sets
+                  }
+                  className="px-4"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
