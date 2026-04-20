@@ -27,12 +27,14 @@ export function WorkoutList({
 }: WorkoutListProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // Tracks the intended drop target without triggering reorder until drop
+  const pendingDropIndex = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
+    pendingDropIndex.current = index;
     e.dataTransfer.effectAllowed = "move";
-    // Set a custom drag image for better visual feedback
     const dragElement = e.currentTarget as HTMLElement;
     e.dataTransfer.setDragImage(dragElement, 0, 0);
   };
@@ -40,27 +42,18 @@ export function WorkoutList({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    
+
     if (draggedIndex === null || draggedIndex === index) {
       setDragOverIndex(null);
       return;
     }
 
+    // Only update the visual highlight — no reorder yet
+    pendingDropIndex.current = index;
     setDragOverIndex(index);
-
-    const newExercises = [...exercises];
-    const draggedItem = newExercises[draggedIndex];
-    newExercises.splice(draggedIndex, 1);
-    newExercises.splice(index, 0, draggedItem);
-
-    // Update order numbers
-    const reordered = newExercises.map((ex, i) => ({ ...ex, order: i }));
-    onReorder(reordered);
-    setDraggedIndex(index);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only clear if leaving the list entirely
     if (e.currentTarget === listRef.current) {
       setDragOverIndex(null);
     }
@@ -69,12 +62,24 @@ export function WorkoutList({
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+    pendingDropIndex.current = null;
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    const from = draggedIndex;
+    const to = pendingDropIndex.current;
+
+    if (from !== null && to !== null && from !== to) {
+      const reordered = [...exercises];
+      const [item] = reordered.splice(from, 1);
+      reordered.splice(to, 0, item);
+      onReorder(reordered.map((ex, i) => ({ ...ex, order: i })));
+    }
+
     setDraggedIndex(null);
     setDragOverIndex(null);
+    pendingDropIndex.current = null;
   };
 
   const remainingTime = maxDuration - totalDuration;
